@@ -1,0 +1,1048 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Inspection">
+<meta name="theme-color" content="#dc2626">
+<title>Audit Nuisibles</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f3f4f6;-webkit-tap-highlight-color:transparent}
+input,textarea,select,button{font-family:inherit;font-size:14px}
+button{cursor:pointer}textarea{resize:vertical}img{display:block}
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js" crossorigin></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.3/babel.min.js"></script>
+
+<script type="text/babel">
+const {useState,useEffect,useRef}=React;
+
+/* ─── DONNÉES ──────────────────────────────────────────── */
+const TYPES={
+  Rongeurs:{e:"🐀",c:"#dc2626",
+    subs:["Rats bruns","Rats noirs","Souris","Non identifié"],
+    sp:{"Rats bruns":[],"Rats noirs":[],"Souris":[]},
+    r:["Postes d'appâtage toxique","Pièges mécaniques","Pièges connectés Radar X",
+       "Stations Dual Autogate","Caméra Optix","Colmatage des accès","Conestop",
+       "Tir sanitaire","Inspection approfondie"]},
+  IPS:{e:"🪲",c:"#7c3aed",
+    subs:["Pyrales","Triboliums","Vrillettes","Charançons","Autre"],
+    sp:{Pyrales:["Teigne de la farine","Teigne des greniers"],
+        Triboliums:["Castaneum","Confusum"],Vrillettes:["Du pain","Des meubles"]},
+    r:["Pièges à phéromones","Thermobiocide","Deep cleaning","Nettoyage régulier","Aspiration technique"]},
+  Insectes:{e:"🐜",c:"#d97706",
+    subs:["Fourmis","Cafards","Mouches","Moustiques","Autre"],
+    sp:{Fourmis:["Fourmi noire","Fourmi pharaon","Autre fourmi"],
+        Cafards:["Blatte germanique","Blatte orientale"]},
+    r:["Gel appât insecticide","Traitement insecticide","Nettoyage"]},
+  Oiseaux:{e:"🐦",c:"#0891b2",subs:["Pigeons","Moineaux","Étourneaux","Autre"],sp:{},
+    r:["Gel répulsif","Pics anti-pigeons (Ultra 1/2)","Effarouchement","Prédation biologique","Capture (cage)"]},
+  Herméticité:{e:"🚪",c:"#059669",subs:[],sp:{},
+    r:["Bas de porte","Flexi-Armour","Colmatage Multiseal","Conestop","Bernatom"]},
+  Entretien:{e:"🧹",c:"#ca8a04",subs:[],sp:{},
+    r:["Entretenir végétation","Nettoyage régulier","Deep cleaning"]},
+  Stockage:{e:"📦",c:"#9333ea",subs:[],sp:{},
+    r:["Améliorer stockage","Rotation des stocks","Mise sous film"]},
+  Travaux:{e:"🔧",c:"#f59e0b",subs:[],sp:{},r:["Intervention urgente","Signalétique"]}
+};
+const PRIOS=[
+  {l:"A faire le plus rapidement possible",c:"#dc2626",e:"🔴"},
+  {l:"A faire rapidement",c:"#ea580c",e:"🟠"},
+  {l:"A planifier",c:"#ca8a04",e:"🟡"},
+  {l:"Pour information",c:"#16a34a",e:"🟢"}
+];
+
+/* ─── STOCKAGE LOCAL ───────────────────────────────────── */
+const lsSave=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
+const lsLoad=(k,d=null)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}};
+
+/* ─── UTILITAIRES ──────────────────────────────────────── */
+const uid=()=>Math.random().toString(36).substr(2,9);
+const fmt=d=>new Date(d).toLocaleDateString("fr-FR");
+
+const compress=(file,maxW=900)=>new Promise(res=>{
+  const fr=new FileReader();
+  fr.onload=e=>{
+    const img=new Image();
+    img.onload=()=>{
+      const c=document.createElement("canvas");
+      let w=img.width,h=img.height;
+      if(w>maxW){h=h*maxW/w;w=maxW;}
+      c.width=w;c.height=h;
+      c.getContext("2d").drawImage(img,0,0,w,h);
+      res(c.toDataURL("image/jpeg",0.65));
+    };
+    img.src=e.target.result;
+  };
+  fr.readAsDataURL(file);
+});
+
+const exportJSON=data=>{
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download=`audit_backup_${new Date().toISOString().slice(0,10)}.json`;
+  a.click();URL.revokeObjectURL(a.href);
+};
+
+/* ─── STYLES ───────────────────────────────────────────── */
+const C={
+  card:{background:"#fff",border:"1px solid #e5e7eb",borderRadius:12,padding:"14px 16px",marginBottom:8},
+  inp:{width:"100%",border:"1px solid #d1d5db",borderRadius:8,padding:"10px 12px",
+       fontSize:14,background:"#fff",color:"#111",marginTop:4,outline:"none"},
+  btnR:{background:"#dc2626",color:"#fff",border:"none",borderRadius:10,padding:"10px 16px",fontWeight:600,fontSize:14},
+  btnG:{background:"none",border:"1px solid #d1d5db",borderRadius:10,padding:"10px 16px",fontSize:14,color:"#374151"},
+  lbl:{fontSize:13,fontWeight:500,color:"#374151",display:"block",marginBottom:2}
+};
+
+/* ─── COMPOSANTS COMMUNS ───────────────────────────────── */
+function Bar({title,onBack,right}){
+  return(
+    <div style={{background:"#fff",borderBottom:"1px solid #e5e7eb",padding:"12px 16px",
+      display:"flex",alignItems:"center",gap:10,position:"sticky",top:0,zIndex:40}}>
+      {onBack&&<button onClick={onBack} style={{background:"none",border:"none",fontSize:20,
+        color:"#6b7280",padding:"0 4px",lineHeight:1,minWidth:32,minHeight:32}}>←</button>}
+      <div style={{flex:1,fontWeight:600,color:"#111",fontSize:16}}>{title}</div>
+      {right}
+    </div>
+  );
+}
+
+function Chip({label,active,onClick,color}){
+  return(
+    <button onClick={onClick} style={{padding:"6px 12px",borderRadius:20,border:`1px solid ${active?color:"#d1d5db"}`,
+      background:active?color:"#f9fafb",color:active?"#fff":"#374151",
+      fontWeight:active?600:400,fontSize:13,cursor:"pointer",lineHeight:1.4}}>
+      {label}
+    </button>
+  );
+}
+
+/* ─── APP PRINCIPALE ───────────────────────────────────── */
+function App(){
+  const [view,       setView]       = useState("home");
+  const [clients,    setClients]    = useState(()=>lsLoad("clients",[]));
+  const [plans,      setPlans]      = useState(()=>lsLoad("plans",{}));
+  const [inspections,setInspections]= useState(()=>lsLoad("inspections",[]));
+  const [activeInsp, setActiveInsp] = useState(()=>lsLoad("activeInsp",null));
+  const [constats,   setConstats]   = useState(()=>lsLoad("constats",[]));
+  const [extra,      setExtra]      = useState({});
+
+  useEffect(()=>lsSave("clients",clients),     [clients]);
+  useEffect(()=>lsSave("plans",plans),         [plans]);
+  useEffect(()=>lsSave("inspections",inspections),[inspections]);
+  useEffect(()=>lsSave("activeInsp",activeInsp),[activeInsp]);
+  useEffect(()=>lsSave("constats",constats),   [constats]);
+
+  const go=(v,e={})=>{setExtra(e);setView(v);};
+  const p={clients,setClients,plans,setPlans,inspections,setInspections,
+    activeInsp,setActiveInsp,constats,setConstats,go,extra};
+
+  return(
+    <div style={{minHeight:"100vh",background:"#f3f4f6"}}>
+      {view==="home"         &&<HomeView         {...p}/>}
+      {view==="clients"      &&<ClientsView      {...p}/>}
+      {view==="client-form"  &&<ClientFormView   {...p}/>}
+      {view==="client-detail"&&<ClientDetailView {...p}/>}
+      {view==="plan-form"    &&<PlanFormView      {...p}/>}
+      {view==="insp-new"     &&<InspNewView       {...p}/>}
+      {view==="insp-active"  &&<InspActiveView    {...p}/>}
+      {view==="constat-form" &&<ConstatFormView    {...p}/>}
+      {view==="conclusion"   &&<ConclusionView     {...p}/>}
+    </div>
+  );
+}
+
+/* ─── HOME ─────────────────────────────────────────────── */
+function HomeView({clients,inspections,activeInsp,constats,
+  setClients,setPlans,setInspections,setActiveInsp,setConstats,go}){
+  const impRef=useRef();
+  const done=inspections.filter(i=>i.status==="done").sort((a,b)=>b.date.localeCompare(a.date));
+
+  const doExport=()=>exportJSON({
+    version:1,exportDate:new Date().toISOString(),
+    clients:lsLoad("clients",[]),plans:lsLoad("plans",{}),
+    inspections:lsLoad("inspections",[])
+  });
+
+  const doImport=async e=>{
+    const file=e.target.files[0];if(!file)return;
+    try{
+      const d=JSON.parse(await file.text());
+      if(window.confirm(`Importer les données ? (${d.clients?.length||0} clients, ${d.inspections?.length||0} inspections)\nATTENTION : remplace les données actuelles.`)){
+        if(d.clients)     setClients(d.clients);
+        if(d.plans)       setPlans(d.plans);
+        if(d.inspections) setInspections(d.inspections);
+        alert("Import réussi ✓");
+      }
+    }catch(err){alert("Fichier invalide ou corrompu");}
+    e.target.value="";
+  };
+
+  const reopenInsp=i=>{
+    if(!window.confirm(`Rouvrir l'inspection "${i.clientName}" du ${fmt(i.date)} pour la modifier ?`))return;
+    setActiveInsp(i);
+    setConstats(i.constats||[]);
+    go("insp-active");
+  };
+
+  return(
+    <div>
+      <div style={{background:"#dc2626",padding:"24px 16px 32px"}}>
+        <div style={{fontSize:12,color:"rgba(255,255,255,0.7)",marginBottom:4}}>Rentokil · Audit terrain</div>
+        <div style={{fontSize:22,fontWeight:700,color:"#fff"}}>Inspections</div>
+      </div>
+      <div style={{padding:16,marginTop:-16}}>
+
+        {/* Inspection en cours */}
+        {activeInsp&&(
+          <div onClick={()=>go("insp-active")}
+            style={{...C.card,border:"2px solid #16a34a",cursor:"pointer",marginBottom:12}}>
+            <div style={{fontSize:11,color:"#16a34a",fontWeight:700}}>● EN COURS</div>
+            <div style={{fontWeight:700,fontSize:15,marginTop:2}}>{activeInsp.clientName}</div>
+            <div style={{fontSize:12,color:"#6b7280",marginTop:2}}>
+              {activeInsp.auditor} · {constats.length} constat(s) · {fmt(activeInsp.date)}
+            </div>
+            <div style={{fontSize:12,color:"#16a34a",marginTop:6}}>Reprendre →</div>
+          </div>
+        )}
+
+        {/* Actions */}
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
+          <button onClick={()=>go("insp-new")}
+            style={{...C.btnR,borderRadius:12,padding:"14px 8px",width:"100%"}}>
+            + Inspection
+          </button>
+          <button onClick={()=>go("clients")}
+            style={{...C.btnG,borderRadius:12,padding:"14px 8px",width:"100%"}}>
+            👥 Clients
+          </button>
+        </div>
+
+        {/* Sauvegarde */}
+        <div style={{display:"flex",gap:8,marginBottom:20}}>
+          <button onClick={doExport}
+            style={{...C.btnG,flex:1,fontSize:13,padding:"9px 8px"}}>
+            💾 Exporter
+          </button>
+          <button onClick={()=>impRef.current.click()}
+            style={{...C.btnG,flex:1,fontSize:13,padding:"9px 8px"}}>
+            📂 Importer
+          </button>
+          <input ref={impRef} type="file" accept=".json" onChange={doImport} style={{display:"none"}}/>
+        </div>
+
+        {/* Historique */}
+        {done.length>0&&(
+          <>
+            <div style={{fontWeight:600,fontSize:14,color:"#374151",marginBottom:8}}>
+              Inspections terminées
+            </div>
+            {done.map(i=>(
+              <div key={i.id} style={{...C.card,display:"flex",alignItems:"center",gap:10}}>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontWeight:600,fontSize:14,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+                    {i.clientName}
+                  </div>
+                  <div style={{fontSize:12,color:"#6b7280"}}>
+                    {fmt(i.date)} · {i.auditor} · {i.constatsCount||0} constats
+                  </div>
+                </div>
+                <div style={{display:"flex",gap:6,flexShrink:0}}>
+                  <button onClick={()=>generateReport(i,i.constats||[],i.conclusion||"")}
+                    style={{...C.btnG,padding:"6px 10px",fontSize:12}}>
+                    PDF
+                  </button>
+                  <button onClick={()=>reopenInsp(i)}
+                    style={{...C.btnR,padding:"6px 10px",fontSize:12}}>
+                    Modifier
+                  </button>
+                </div>
+              </div>
+            ))}
+          </>
+        )}
+
+        {clients.length===0&&!activeInsp&&(
+          <div style={{textAlign:"center",color:"#9ca3af",padding:32}}>
+            <div style={{fontSize:40,marginBottom:8}}>🏭</div>
+            <div style={{fontSize:14}}>Commencez par créer un client</div>
+            <button onClick={()=>go("client-form",{})}
+              style={{...C.btnR,marginTop:14}}>+ Créer un client</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ─── CLIENTS ──────────────────────────────────────────── */
+function ClientsView({clients,go}){
+  return(
+    <div>
+      <Bar title="Clients" onBack={()=>go("home")}
+        right={<button onClick={()=>go("client-form",{})}
+          style={{...C.btnR,padding:"6px 12px",fontSize:13}}>+ Ajouter</button>}/>
+      <div style={{padding:16}}>
+        {clients.map(c=>(
+          <div key={c.id} onClick={()=>go("client-detail",{clientId:c.id})}
+            style={{...C.card,cursor:"pointer",display:"flex",alignItems:"center",gap:12}}>
+            <div style={{width:42,height:42,borderRadius:"50%",background:"#fef2f2",
+              display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,flexShrink:0}}>
+              🏭
+            </div>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontWeight:600}}>{c.name}</div>
+              {c.address&&<div style={{fontSize:12,color:"#6b7280",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{c.address}</div>}
+            </div>
+            <span style={{color:"#9ca3af",fontSize:20}}>›</span>
+          </div>
+        ))}
+        {clients.length===0&&(
+          <div style={{textAlign:"center",color:"#9ca3af",padding:32}}>Aucun client</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ─── FORMULAIRE CLIENT ────────────────────────────────── */
+function ClientFormView({clients,setClients,extra,go}){
+  const ex=extra?.client;
+  const [name,    setName]   =useState(ex?.name||"");
+  const [address, setAddress]=useState(ex?.address||"");
+  const [contact, setContact]=useState(ex?.contact||"");
+  const save=()=>{
+    if(!name.trim())return alert("Nom requis");
+    ex ? setClients(cs=>cs.map(c=>c.id===ex.id?{...c,name,address,contact}:c))
+       : setClients(cs=>[...cs,{id:uid(),name,address,contact}]);
+    go("clients");
+  };
+  return(
+    <div>
+      <Bar title={ex?"Modifier client":"Nouveau client"} onBack={()=>go("clients")}
+        right={<button onClick={save} style={{...C.btnR,padding:"6px 12px",fontSize:13}}>Sauvegarder</button>}/>
+      <div style={{padding:16}}>
+        <label style={C.lbl}>Nom *</label>
+        <input value={name} onChange={e=>setName(e.target.value)} style={C.inp} placeholder="Ex: Panzani Marseille"/><br/><br/>
+        <label style={C.lbl}>Adresse</label>
+        <input value={address} onChange={e=>setAddress(e.target.value)} style={C.inp} placeholder="131 Av. Corot, 13013 Marseille"/><br/><br/>
+        <label style={C.lbl}>Contact</label>
+        <input value={contact} onChange={e=>setContact(e.target.value)} style={C.inp} placeholder="Nom du responsable"/>
+      </div>
+    </div>
+  );
+}
+
+/* ─── DÉTAIL CLIENT ────────────────────────────────────── */
+function ClientDetailView({clients,plans,extra,go}){
+  const cl=clients.find(c=>c.id===extra.clientId);
+  const ps=(plans[extra.clientId]||[]);
+  if(!cl)return null;
+  return(
+    <div>
+      <Bar title={cl.name} onBack={()=>go("clients")}
+        right={<button onClick={()=>go("plan-form",{clientId:cl.id})}
+          style={{...C.btnR,padding:"6px 12px",fontSize:13}}>+ Plan</button>}/>
+      <div style={{padding:16}}>
+        {(cl.address||cl.contact)&&(
+          <div style={{background:"#f9fafb",borderRadius:10,padding:"10px 14px",
+            fontSize:13,color:"#6b7280",marginBottom:14}}>
+            {cl.address&&<div>📍 {cl.address}</div>}
+            {cl.contact&&<div style={{marginTop:2}}>👤 {cl.contact}</div>}
+          </div>
+        )}
+        <div style={{fontWeight:600,marginBottom:10}}>Plans ({ps.length})</div>
+        {ps.map(p=>(
+          <div key={p.id} style={{...C.card,display:"flex",gap:12,alignItems:"center"}}>
+            <img src={p.image} style={{width:64,height:48,objectFit:"cover",borderRadius:6,
+              border:"1px solid #e5e7eb",flexShrink:0}}/>
+            <div>
+              <div style={{fontWeight:600,fontSize:14}}>{p.name}</div>
+              <div style={{fontSize:12,color:"#6b7280"}}>{p.building}{p.floor&&` · ${p.floor}`}</div>
+            </div>
+          </div>
+        ))}
+        {ps.length===0&&<div style={{textAlign:"center",color:"#9ca3af",padding:24}}>Aucun plan enregistré</div>}
+      </div>
+    </div>
+  );
+}
+
+/* ─── FORMULAIRE PLAN ──────────────────────────────────── */
+function PlanFormView({plans,setPlans,extra,go}){
+  const [name,    setName]    =useState("");
+  const [building,setBuilding]=useState("");
+  const [floor,   setFloor]   =useState("");
+  const [image,   setImage]   =useState(null);
+  const fRef=useRef();
+  const onFile=async e=>{
+    const f=e.target.files[0];if(!f)return;
+    setImage(await compress(f,1500));
+  };
+  const save=()=>{
+    if(!name.trim()||!image)return alert("Nom et image requis");
+    const cid=extra.clientId;
+    setPlans(p=>({...p,[cid]:[...(p[cid]||[]),{id:uid(),name,building,floor,image}]}));
+    go("client-detail",{clientId:cid});
+  };
+  return(
+    <div>
+      <Bar title="Ajouter un plan" onBack={()=>go("client-detail",{clientId:extra.clientId})}
+        right={<button onClick={save} style={{...C.btnR,padding:"6px 12px",fontSize:13}}>Sauvegarder</button>}/>
+      <div style={{padding:16}}>
+        <label style={C.lbl}>Nom du plan *</label>
+        <input value={name} onChange={e=>setName(e.target.value)} style={C.inp}
+          placeholder="Extérieur, RDC, Bât. trituration 3ème..."/><br/><br/>
+        <label style={C.lbl}>Bâtiment</label>
+        <input value={building} onChange={e=>setBuilding(e.target.value)} style={C.inp}
+          placeholder="Bâtiment trituration"/><br/><br/>
+        <label style={C.lbl}>Niveau / Étage</label>
+        <input value={floor} onChange={e=>setFloor(e.target.value)} style={C.inp}
+          placeholder="RDC, 3ème étage..."/><br/><br/>
+        <label style={C.lbl}>Image du plan *</label>
+        <input ref={fRef} type="file" accept="image/*" onChange={onFile} style={{display:"none"}}/>
+        <div onClick={()=>fRef.current.click()} style={{border:"2px dashed #d1d5db",borderRadius:12,
+          padding:16,cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",
+          justifyContent:"center",minHeight:130,background:"#f9fafb",marginTop:4}}>
+          {image
+            ?<img src={image} style={{maxHeight:160,objectFit:"contain"}}/>
+            :<><div style={{fontSize:32}}>📷</div>
+              <div style={{fontSize:13,color:"#9ca3af",marginTop:6}}>Photographier ou choisir un plan</div></>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── NOUVELLE INSPECTION ──────────────────────────────── */
+function InspNewView({clients,setInspections,setActiveInsp,setConstats,go}){
+  const [cid,setCid]=useState("");
+  const [aud,setAud]=useState("");
+  const start=()=>{
+    if(!cid||!aud.trim())return alert("Client et auditeur requis");
+    const cl=clients.find(c=>c.id===cid);
+    const ni={id:uid(),clientId:cid,clientName:cl.name,clientAddress:cl.address||"",
+      auditor:aud,date:new Date().toISOString(),status:"active",inspectors:[aud]};
+    setInspections(is=>[ni,...is]);
+    setActiveInsp(ni);
+    setConstats([]);
+    go("insp-active");
+  };
+  return(
+    <div>
+      <Bar title="Nouvelle inspection" onBack={()=>go("home")}/>
+      <div style={{padding:16}}>
+        <label style={C.lbl}>Client *</label>
+        <select value={cid} onChange={e=>setCid(e.target.value)} style={{...C.inp,marginBottom:16}}>
+          <option value="">-- Sélectionner --</option>
+          {clients.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
+        {clients.length===0&&(
+          <div style={{fontSize:12,color:"#dc2626",marginTop:-10,marginBottom:12}}>
+            Aucun client.{" "}
+            <span onClick={()=>go("client-form",{})} style={{cursor:"pointer",textDecoration:"underline"}}>
+              Créer un client
+            </span>
+          </div>
+        )}
+        <label style={C.lbl}>Auditeur *</label>
+        <input value={aud} onChange={e=>setAud(e.target.value)} style={{...C.inp,marginBottom:20}}
+          placeholder="davy.slila@rentokil-initial.com"/>
+        <button onClick={start} disabled={!cid||!aud.trim()}
+          style={{...C.btnR,width:"100%",padding:14,fontSize:15,opacity:(!cid||!aud.trim())?0.5:1}}>
+          Démarrer →
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ─── INSPECTION ACTIVE ────────────────────────────────── */
+function InspActiveView({activeInsp,constats,setConstats,plans,setActiveInsp,setInspections,go,extra}){
+  const cPlans=plans[activeInsp.clientId]||[];
+  const [selPlan,setSelPlan]=useState(()=>
+    extra?.restorePlanId ? cPlans.find(p=>p.id===extra.restorePlanId)||null : null
+  );
+  const [pendPt, setPendPt]  =useState(null);
+  const [showModal,setShowModal]=useState(false);
+  const [viewC,  setViewC]   =useState(null);
+
+  const planCs=selPlan?constats.filter(c=>c.planId===selPlan.id):[];
+
+  const onTap=e=>{
+    const img=e.currentTarget.querySelector("img");
+    if(!img)return;
+    const r=img.getBoundingClientRect();
+    setPendPt({
+      x:parseFloat(((e.clientX-r.left)/r.width*100).toFixed(1)),
+      y:parseFloat(((e.clientY-r.top)/r.height*100).toFixed(1))
+    });
+    setShowModal(true);
+  };
+
+  const onTypeSelect=type=>{
+    setShowModal(false);
+    go("constat-form",{plan:selPlan,type,point:pendPt,restorePlanId:selPlan?.id});
+  };
+
+  return(
+    <div style={{display:"flex",flexDirection:"column",height:"100dvh",overflow:"hidden"}}>
+
+      {/* Header rouge */}
+      <div style={{background:"#dc2626",padding:"12px 16px",flexShrink:0}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+          <div>
+            <div style={{fontWeight:700,color:"#fff",fontSize:15}}>{activeInsp.clientName}</div>
+            <div style={{fontSize:11,color:"rgba(255,255,255,0.8)",marginTop:1}}>{activeInsp.auditor}</div>
+          </div>
+          <div style={{textAlign:"right"}}>
+            <div style={{fontSize:22,fontWeight:700,color:"#fff"}}>{constats.length}</div>
+            <div style={{fontSize:10,color:"rgba(255,255,255,0.7)"}}>constats</div>
+          </div>
+        </div>
+        {/* Onglets plans */}
+        <div style={{display:"flex",gap:8,marginTop:10,overflowX:"auto",paddingBottom:2}}>
+          {cPlans.map(p=>(
+            <button key={p.id} onClick={()=>setSelPlan(p)} style={{flexShrink:0,fontSize:11,
+              padding:"4px 10px",borderRadius:20,border:"1px solid",cursor:"pointer",
+              background:selPlan?.id===p.id?"#fff":"transparent",
+              color:selPlan?.id===p.id?"#dc2626":"rgba(255,255,255,0.9)",
+              borderColor:selPlan?.id===p.id?"#fff":"rgba(255,255,255,0.4)"}}>
+              {p.name}
+            </button>
+          ))}
+          <button onClick={()=>go("plan-form",{clientId:activeInsp.clientId})}
+            style={{flexShrink:0,fontSize:11,padding:"4px 10px",borderRadius:20,cursor:"pointer",
+              border:"1px solid rgba(255,255,255,0.4)",background:"transparent",
+              color:"rgba(255,255,255,0.9)"}}>
+            + plan
+          </button>
+        </div>
+      </div>
+
+      {/* Zone plan cliquable */}
+      <div style={{flex:1,overflow:"auto",background:"#d1d5db"}}>
+        {selPlan?(
+          <div style={{position:"relative",display:"inline-block",minWidth:"100%",cursor:"crosshair"}}
+            onClick={onTap}>
+            <img src={selPlan.image} style={{display:"block",maxWidth:"100%",userSelect:"none"}}
+              draggable={false}/>
+            {planCs.map(c=>{
+              const t=TYPES[c.type]||{c:"#666"};
+              const n=constats.indexOf(c)+1;
+              return(
+                <div key={c.id} onClick={e=>{e.stopPropagation();setViewC(c);}}
+                  style={{position:"absolute",left:`${c.x}%`,top:`${c.y}%`,
+                    transform:"translate(-50%,-50%)",background:t.c,
+                    width:28,height:28,borderRadius:"50%",cursor:"pointer",zIndex:10,
+                    display:"flex",alignItems:"center",justifyContent:"center",
+                    color:"#fff",fontSize:11,fontWeight:"bold",
+                    border:"2.5px solid #fff",boxShadow:"0 2px 6px rgba(0,0,0,0.4)"}}>
+                  {n}
+                </div>
+              );
+            })}
+          </div>
+        ):(
+          <div style={{display:"flex",flexDirection:"column",alignItems:"center",
+            justifyContent:"center",height:"100%",color:"#9ca3af",padding:32,minHeight:280}}>
+            <div style={{fontSize:48,marginBottom:12}}>🗺️</div>
+            <div style={{fontSize:14,textAlign:"center",lineHeight:1.5}}>
+              Sélectionnez un plan ci-dessus<br/>puis appuyez sur l'emplacement du constat
+            </div>
+            {cPlans.length===0&&(
+              <div style={{fontSize:12,marginTop:12,color:"#9ca3af",textAlign:"center"}}>
+                Aucun plan — ajoutez-en un via le bouton "+ plan"
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Barre bas */}
+      <div style={{background:"#fff",borderTop:"1px solid #e5e7eb",
+        padding:"10px 16px",display:"flex",gap:10,flexShrink:0}}>
+        <button onClick={()=>go("home")} style={{...C.btnG,padding:"8px 14px",fontSize:13}}>← Accueil</button>
+        <div style={{flex:1}}/>
+        {constats.length>0&&(
+          <button onClick={()=>go("conclusion")}
+            style={{...C.btnR,background:"#16a34a",padding:"8px 14px",fontSize:13}}>
+            Conclure ✓
+          </button>
+        )}
+      </div>
+
+      {/* Modal — choix type */}
+      {showModal&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",zIndex:100,
+          display:"flex",alignItems:"flex-end"}} onClick={()=>setShowModal(false)}>
+          <div style={{background:"#fff",borderRadius:"18px 18px 0 0",width:"100%",padding:20}}
+            onClick={e=>e.stopPropagation()}>
+            <div style={{textAlign:"center",fontWeight:600,marginBottom:16,fontSize:15}}>Type de constat</div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10}}>
+              {Object.entries(TYPES).map(([t,v])=>(
+                <button key={t} onClick={()=>onTypeSelect(t)}
+                  style={{background:"#f9fafb",border:`2px solid ${v.c}`,borderRadius:12,
+                    padding:"10px 4px",cursor:"pointer",display:"flex",flexDirection:"column",
+                    alignItems:"center",gap:4}}>
+                  <span style={{fontSize:22}}>{v.e}</span>
+                  <span style={{fontSize:10,color:v.c,fontWeight:600,textAlign:"center"}}>{t}</span>
+                </button>
+              ))}
+            </div>
+            <button onClick={()=>setShowModal(false)} style={{width:"100%",marginTop:14,padding:10,
+              background:"none",border:"none",color:"#6b7280",fontSize:14,cursor:"pointer"}}>
+              Annuler
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal — détail constat */}
+      {viewC&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",zIndex:100,
+          display:"flex",alignItems:"flex-end"}} onClick={()=>setViewC(null)}>
+          <div style={{background:"#fff",borderRadius:"18px 18px 0 0",width:"100%",
+            padding:16,maxHeight:"70vh",overflow:"auto"}} onClick={e=>e.stopPropagation()}>
+            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
+              <span style={{background:TYPES[viewC.type]?.c||"#666",color:"#fff",
+                padding:"3px 10px",borderRadius:6,fontSize:13,fontWeight:600}}>{viewC.type}</span>
+              {viewC.subtype&&<span style={{color:TYPES[viewC.type]?.c,fontSize:13}}>▸ {viewC.subtype}</span>}
+              {viewC.species&&<span style={{fontSize:12,color:"#6b7280"}}>({viewC.species})</span>}
+              <span style={{marginLeft:"auto",fontSize:15}}>{PRIOS[viewC.priority]?.e}</span>
+            </div>
+            {viewC.photos?.some(Boolean)&&(
+              <div style={{display:"flex",gap:6,marginBottom:10}}>
+                {viewC.photos.map((ph,i)=>ph&&(
+                  <img key={i} src={ph} style={{width:80,height:60,objectFit:"cover",borderRadius:6}}/>
+                ))}
+              </div>
+            )}
+            {viewC.observations&&(
+              <div style={{fontSize:13,color:"#374151",marginBottom:8,lineHeight:1.5}}>
+                {viewC.observations}
+              </div>
+            )}
+            {viewC.recommendations?.length>0&&(
+              <div style={{fontSize:12,color:"#6b7280",lineHeight:1.6}}>
+                {viewC.recommendations.join(" · ")}
+              </div>
+            )}
+            <div style={{display:"flex",gap:8,marginTop:14}}>
+              <button onClick={()=>{setViewC(null);
+                go("constat-form",{plan:selPlan,type:viewC.type,editId:viewC.id,
+                  initConstat:viewC,restorePlanId:selPlan?.id});}}
+                style={{...C.btnR,flex:1}}>Modifier</button>
+              <button onClick={()=>{
+                if(window.confirm("Supprimer ce constat ?")){
+                  setConstats(cs=>cs.filter(c=>c.id!==viewC.id));
+                  setViewC(null);
+                }}} style={{...C.btnG,flex:1,color:"#dc2626",borderColor:"#dc2626"}}>
+                Supprimer
+              </button>
+            </div>
+            <button onClick={()=>setViewC(null)} style={{width:"100%",marginTop:8,padding:10,
+              background:"none",border:"none",color:"#6b7280",cursor:"pointer",fontSize:13}}>
+              Fermer
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── FORMULAIRE CONSTAT ───────────────────────────────── */
+function ConstatFormView({constats,setConstats,extra,go}){
+  const {plan,type,point,editId,initConstat,restorePlanId}=extra||{};
+  const ti=TYPES[type]||{e:"?",c:"#666",subs:[],sp:{},r:[]};
+  const [subtype, setSubtype] =useState(initConstat?.subtype||"");
+  const [species, setSpecies] =useState(initConstat?.species||"");
+  const [priority,setPriority]=useState(initConstat?.priority??0);
+  const [obs,     setObs]     =useState(initConstat?.observations||"");
+  const [recos,   setRecos]   =useState(initConstat?.recommendations||[]);
+  const [photos,  setPhotos]  =useState(initConstat?.photos||[]);
+  const [customReco,setCustomReco]=useState("");
+  const pRefs=[useRef(),useRef(),useRef()];
+
+  const onPhoto=async(i,e)=>{
+    const f=e.target.files[0];if(!f)return;
+    const img=await compress(f,900);
+    setPhotos(prev=>{const p=[...prev];p[i]=img;return p;});
+  };
+
+  const toggleReco=r=>setRecos(prev=>prev.includes(r)?prev.filter(x=>x!==r):[...prev,r]);
+
+  const addCustomReco=()=>{
+    const v=customReco.trim();
+    if(!v)return;
+    if(!recos.includes(v)) setRecos(prev=>[...prev,v]);
+    setCustomReco("");
+  };
+
+  const save=()=>{
+    const safeC=Array.isArray(constats)?constats:[];
+    const nc={
+      id:editId||uid(),
+      planId:plan?.id,
+      planName:plan?.name||"Zone non définie",
+      x:point?.x??initConstat?.x,
+      y:point?.y??initConstat?.y,
+      type,subtype,species,priority,
+      observations:obs,recommendations:recos,photos
+    };
+    setConstats(editId?safeC.map(c=>c.id===editId?nc:c):[...safeC,nc]);
+    go("insp-active",{restorePlanId});
+  };
+
+  return(
+    <div style={{display:"flex",flexDirection:"column",height:"100dvh",overflow:"hidden"}}>
+      <Bar title={editId?"Modifier constat":"Nouveau constat"}
+        onBack={()=>go("insp-active",{restorePlanId})}
+        right={<button onClick={save} style={{...C.btnR,padding:"6px 14px",fontSize:13}}>Valider ✓</button>}/>
+
+      <div style={{flex:1,overflowY:"auto",padding:16,paddingBottom:40}}>
+        {plan&&(
+          <div style={{background:"#f9fafb",borderRadius:8,padding:"8px 12px",
+            fontSize:12,color:"#6b7280",marginBottom:14}}>
+            📍 {[plan.building,plan.name].filter(Boolean).join(" · ")}
+          </div>
+        )}
+
+        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:16}}>
+          <span style={{fontSize:26}}>{ti.e}</span>
+          <span style={{fontWeight:700,fontSize:17,color:ti.c}}>{type}</span>
+        </div>
+
+        {/* Sous-type */}
+        {ti.subs.length>0&&(
+          <div style={{marginBottom:14}}>
+            <label style={C.lbl}>Sous-type</label>
+            <div style={{display:"flex",flexWrap:"wrap",gap:6,marginTop:6}}>
+              {ti.subs.map(s=>(
+                <Chip key={s} label={s} active={subtype===s} color={ti.c}
+                  onClick={()=>{setSubtype(s);setSpecies("");}}/>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Espèce */}
+        {subtype&&ti.sp[subtype]?.length>0&&(
+          <div style={{marginBottom:14}}>
+            <label style={C.lbl}>Espèce</label>
+            <div style={{display:"flex",flexWrap:"wrap",gap:6,marginTop:6}}>
+              {ti.sp[subtype].map(s=>(
+                <Chip key={s} label={s} active={species===s} color={ti.c}
+                  onClick={()=>setSpecies(s)}/>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Priorité */}
+        <div style={{marginBottom:14}}>
+          <label style={C.lbl}>Priorité</label>
+          <div style={{display:"flex",flexDirection:"column",gap:6,marginTop:6}}>
+            {PRIOS.map((p,i)=>(
+              <button key={i} onClick={()=>setPriority(i)}
+                style={{padding:"9px 12px",borderRadius:8,cursor:"pointer",fontSize:13,
+                  textAlign:"left",color:"#111",
+                  background:priority===i?p.c+"18":"#f9fafb",
+                  border:`${priority===i?2:1}px solid ${priority===i?p.c:"#e5e7eb"}`}}>
+                {p.e} {p.l}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Photos */}
+        <div style={{marginBottom:14}}>
+          <label style={C.lbl}>Photos (max 3)</label>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginTop:6}}>
+            {[0,1,2].map(i=>(
+              <div key={i}>
+                <input ref={pRefs[i]} type="file" accept="image/*" capture="environment"
+                  onChange={e=>onPhoto(i,e)} style={{display:"none"}}/>
+                <div onClick={()=>pRefs[i].current.click()}
+                  style={{aspectRatio:"1",border:"2px dashed #d1d5db",borderRadius:10,
+                    cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",
+                    overflow:"hidden",background:"#f9fafb"}}>
+                  {photos[i]
+                    ?<img src={photos[i]} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+                    :<span style={{fontSize:24,color:"#9ca3af"}}>📷</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Observations */}
+        <div style={{marginBottom:14}}>
+          <label style={C.lbl}>Observations</label>
+          <textarea value={obs} onChange={e=>setObs(e.target.value)} rows={3}
+            placeholder="Décrivez ce que vous observez..." style={{...C.inp,lineHeight:1.5}}/>
+        </div>
+
+        {/* Recommandations */}
+        <div style={{marginBottom:14}}>
+          <label style={C.lbl}>Actions recommandées</label>
+          <div style={{display:"flex",flexDirection:"column",gap:6,marginTop:6}}>
+            {ti.r.map(r=>(
+              <button key={r} onClick={()=>toggleReco(r)}
+                style={{padding:"9px 12px",borderRadius:8,cursor:"pointer",fontSize:13,
+                  textAlign:"left",display:"flex",alignItems:"center",gap:8,color:"#111",
+                  background:recos.includes(r)?"#f0fdf4":"#f9fafb",
+                  border:`1px solid ${recos.includes(r)?"#16a34a":"#e5e7eb"}`}}>
+                <span style={{color:recos.includes(r)?"#16a34a":"#d1d5db",
+                  fontSize:16,fontWeight:"bold",flexShrink:0}}>
+                  {recos.includes(r)?"✓":"○"}
+                </span>
+                {r}
+              </button>
+            ))}
+            {/* Recos personnalisées déjà cochées */}
+            {recos.filter(r=>!ti.r.includes(r)).map(r=>(
+              <button key={r} onClick={()=>toggleReco(r)}
+                style={{padding:"9px 12px",borderRadius:8,cursor:"pointer",fontSize:13,
+                  textAlign:"left",display:"flex",alignItems:"center",gap:8,color:"#111",
+                  background:"#f0fdf4",border:"1px solid #16a34a"}}>
+                <span style={{color:"#16a34a",fontSize:16,fontWeight:"bold",flexShrink:0}}>✓</span>
+                {r}
+              </button>
+            ))}
+          </div>
+          {/* Ajout reco personnalisée */}
+          <div style={{display:"flex",gap:8,marginTop:8}}>
+            <input value={customReco} onChange={e=>setCustomReco(e.target.value)}
+              onKeyDown={e=>e.key==="Enter"&&addCustomReco()}
+              style={{...C.inp,flex:1,marginTop:0}} placeholder="+ Autre recommandation (Entrée)"/>
+            <button onClick={addCustomReco}
+              style={{...C.btnR,padding:"0 14px",marginTop:0,flexShrink:0}}>+</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── CONCLUSION ───────────────────────────────────────── */
+function ConclusionView({activeInsp,constats,setInspections,setActiveInsp,go}){
+  const safeC=Array.isArray(constats)?constats:[];
+  const [concl,setConcl]=useState(activeInsp?.conclusion||"");
+  const byType=safeC.reduce((a,c)=>{a[c.type]=(a[c.type]||0)+1;return a},{});
+
+  const finish=()=>{
+    if(!concl.trim())return alert("Veuillez saisir une conclusion");
+    const done={...activeInsp,status:"done",conclusion:concl,
+      constats:safeC,constatsCount:safeC.length};
+    setInspections(is=>is.map(i=>i.id===activeInsp.id?done:i));
+    generateReport(done,safeC,concl);
+    setActiveInsp(null);
+    go("home");
+  };
+
+  return(
+    <div>
+      <Bar title="Conclusion" onBack={()=>go("insp-active")}/>
+      <div style={{padding:16}}>
+        {/* Résumé */}
+        <div style={{...C.card,marginBottom:16}}>
+          <div style={{fontWeight:600,marginBottom:10}}>{safeC.length} constat(s)</div>
+          <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
+            {Object.entries(byType).map(([t,n])=>(
+              <div key={t} style={{display:"flex",alignItems:"center",gap:4,background:"#f9fafb",
+                borderRadius:20,padding:"4px 10px",fontSize:13,border:"1px solid #e5e7eb"}}>
+                <span>{TYPES[t]?.e}</span>
+                <span style={{color:TYPES[t]?.c,fontWeight:600}}>{t}</span>
+                <span style={{color:"#6b7280"}}>×{n}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <label style={C.lbl}>Conclusion générale *</label>
+        <textarea value={concl} onChange={e=>setConcl(e.target.value)} rows={9}
+          placeholder="Synthèse de l'inspection, analyse du risque, plan d'actions prioritaires..."
+          style={{...C.inp,lineHeight:1.6,marginBottom:14}}/>
+
+        <div style={{display:"flex",gap:10,marginBottom:12}}>
+          <button onClick={()=>generateReport({...activeInsp},safeC,concl)}
+            style={{...C.btnG,flex:1,fontSize:13}}>
+            👁 Prévisualiser le rapport
+          </button>
+        </div>
+
+        <button onClick={finish} disabled={!concl.trim()}
+          style={{...C.btnR,background:"#16a34a",width:"100%",padding:14,
+            fontSize:15,opacity:!concl.trim()?0.5:1}}>
+          Générer le rapport PDF et terminer →
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ─── GÉNÉRATION RAPPORT HTML/PDF ──────────────────────── */
+function generateReport(insp,constats,conclusion){
+  const safeC=Array.isArray(constats)?constats:[];
+  const byPlan=safeC.reduce((a,c)=>{
+    const k=c.planName||"Zone non définie";
+    if(!a[k])a[k]=[];a[k].push(c);return a;
+  },{});
+  const pl=["🔴 A faire le plus rapidement possible","🟠 A faire rapidement","🟡 A planifier","🟢 Pour information"];
+  const fmtD=d=>new Date(d).toLocaleDateString("fr-FR");
+  const esc=s=>(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+
+  const html=`<!DOCTYPE html><html lang="fr"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rapport audit — ${esc(insp.clientName)}</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Arial,sans-serif;color:#333;font-size:10.5pt}
+.page{page-break-after:always;padding:22px}
+.cover{background:#c00;color:#fff;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px;text-align:center}
+.cover h1{font-size:24pt;margin-bottom:6px}.cover h2{font-size:14pt;font-weight:normal;margin-bottom:28px}
+.it{background:#fff;color:#333;border-collapse:collapse;width:80%;margin:0 auto}
+.it td{padding:9px 14px;border-bottom:1px solid #eee}
+.it td:first-child{font-weight:bold;background:#f9f9f9;width:35%}
+.zone{color:#c00;font-size:11pt;font-weight:bold;margin:0 0 10px;border-bottom:2px solid #c00;padding-bottom:3px}
+.ct{margin-bottom:16px;border:1px solid #ddd;border-radius:3px;overflow:hidden}
+.ch{background:#f5f5f5;padding:7px 10px;border-bottom:1px solid #ddd;font-size:10pt}
+.badge{color:#fff;padding:2px 8px;border-radius:3px;font-size:8.5pt;font-weight:bold}
+.pt{width:100%;border-collapse:collapse}.pt td{border:1px solid #ddd;padding:4px;text-align:center;vertical-align:top;width:25%}
+.pt img{width:100%;height:130px;object-fit:cover}.pl{font-size:7.5pt;color:#666;margin-bottom:2px}
+.ph{height:130px;background:#f5f5f5;display:flex;align-items:center;justify-content:center;color:#ccc;font-size:20pt}
+.ot{border-collapse:collapse;width:100%}.ot td{border:1px solid #ddd;padding:7px;font-size:9.5pt;vertical-align:top}
+.ot td:first-child{font-weight:bold;background:#fafafa;width:22%;white-space:nowrap}
+h2.s{color:#c00;font-size:12pt;border-bottom:2px solid #c00;padding-bottom:3px;margin:16px 0 10px}
+.at{width:100%;border-collapse:collapse;font-size:9.5pt}
+.at th{background:#c00;color:#fff;padding:7px;text-align:left}
+.at td{padding:6px 7px;border:1px solid #ddd}
+.at tr:nth-child(even) td{background:#fafafa}
+.concl{border-left:4px solid #c00;padding:10px 14px;background:#fafafa;margin:10px 0;line-height:1.6;font-size:10pt}
+@media print{.page{page-break-after:always}.no-print{display:none!important}}
+@media screen{body{max-width:900px;margin:0 auto}.page{margin-bottom:20px;box-shadow:0 2px 8px rgba(0,0,0,0.12)}}
+</style></head><body>
+
+<button class="no-print" onclick="window.print()"
+  style="position:fixed;bottom:20px;right:20px;background:#c00;color:#fff;border:none;
+  padding:12px 20px;border-radius:8px;cursor:pointer;font-size:14px;font-weight:bold;
+  box-shadow:0 2px 8px rgba(0,0,0,0.3);z-index:999">
+  🖨️ Imprimer / Enregistrer en PDF
+</button>
+
+<div class="page cover">
+  <div style="font-size:36pt;margin-bottom:8px">🐀</div>
+  <h1>Rapport d'audit nuisibles</h1>
+  <h2>${esc(insp.clientName)}</h2>
+  <table class="it">
+    <tr><td>Client :</td><td>${esc(insp.clientName)}</td></tr>
+    ${insp.clientAddress?`<tr><td>Adresse :</td><td>${esc(insp.clientAddress)}</td></tr>`:""}
+    <tr><td>Date :</td><td>${fmtD(insp.date)}</td></tr>
+    <tr><td>Auditeur :</td><td>${esc(insp.auditor)}</td></tr>
+    ${insp.inspectors?.length>1?`<tr><td>Équipe :</td><td>${insp.inspectors.map(esc).join(", ")}</td></tr>`:""}
+    <tr><td>Nb constats :</td><td><b>${safeC.length}</b></td></tr>
+  </table>
+  <div style="margin-top:20px;font-size:10pt;color:rgba(255,255,255,0.6)">
+    Généré le ${fmtD(new Date())} — Document non officiel / usage interne
+  </div>
+</div>
+
+${Object.entries(byPlan).map(([planName,cs])=>`
+<div class="page">
+  <div class="zone">📍 ZONE : ${esc(planName)}</div>
+  ${cs.map(c=>{
+    const t=TYPES[c.type]||{c:"#666"};
+    return `<div class="ct">
+      <div class="ch">
+        <span class="badge" style="background:${t.c}">${esc(c.type)}</span>
+        ${c.subtype?`<span style="color:${t.c};font-size:9.5pt;margin-left:6px">▸ ${esc(c.subtype)}</span>`:""}
+        ${c.species?`<span style="font-size:9pt;color:#666;margin-left:4px">(${esc(c.species)})</span>`:""}
+        <span style="float:right;font-size:9pt">${pl[c.priority]||pl[0]}</span>
+      </div>
+      <table class="pt"><tr>
+        <td><div class="pl">Localisation</div><div class="ph">🗺️</div></td>
+        ${[0,1,2].map(j=>`<td><div class="pl">Photo ${j+1}</div>${
+          c.photos?.[j]?`<img src="${c.photos[j]}" alt="Photo ${j+1}"/>`
+          :`<div class="ph"></div>`}</td>`).join("")}
+      </tr></table>
+      <table class="ot">
+        <tr><td>Observations :</td><td>${esc(c.observations)||"—"}</td></tr>
+        <tr><td>Actions recommandées :</td><td>${c.recommendations?.map(esc).join(" , ")||"—"}</td></tr>
+      </table>
+    </div>`;
+  }).join("")}
+</div>`).join("")}
+
+<div class="page">
+  <h2 class="s">CONCLUSION GÉNÉRALE</h2>
+  <div class="concl">${esc(conclusion).replace(/\n/g,"<br/>")}</div>
+
+  <h2 class="s">PLAN D'ACTIONS PRIORITAIRES</h2>
+  <table class="at">
+    <tr><th>Zone</th><th>Problème</th><th>Priorité</th><th>Actions recommandées</th></tr>
+    ${safeC.map((c,i)=>`
+    <tr>
+      <td>${esc(c.planName)||"—"}</td>
+      <td>${esc(c.type)}${c.subtype?" – "+esc(c.subtype):""}</td>
+      <td>${["🔴","🟠","🟡","🟢"][c.priority]||"🔴"}</td>
+      <td>${c.recommendations?.map(esc).join(", ")||"—"}</td>
+    </tr>`).join("")}
+  </table>
+
+  <div style="display:flex;justify-content:space-between;margin-top:40px">
+    <div style="width:45%">
+      <b>Signature de l'auditeur :</b><br/><br/>${esc(insp.auditor)}
+      <div style="border-top:1px solid #999;margin-top:30px"></div>
+    </div>
+    <div style="width:45%">
+      <b>Signature du client :</b>
+      <div style="border-top:1px solid #999;margin-top:56px"></div>
+    </div>
+  </div>
+</div>
+
+</body></html>`;
+
+  const w=window.open("","_blank");
+  if(w){w.document.write(html);w.document.close();}
+  else alert("Autorisez les popups pour générer le rapport.");
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+
+<script>
+/* PWA Manifest dynamique */
+const manifest={
+  name:"Audit Nuisibles",short_name:"Inspection",
+  description:"Application d'inspection terrain nuisibles",
+  start_url:"./",display:"standalone",
+  background_color:"#ffffff",theme_color:"#dc2626",
+  orientation:"portrait-primary",
+  icons:[{
+    src:"data:image/svg+xml,"+encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">'+
+      '<rect width="100" height="100" rx="20" fill="#dc2626"/>'+
+      '<text y="72" x="10" font-size="70">🐀</text></svg>'),
+    sizes:"512x512",type:"image/svg+xml",purpose:"any maskable"
+  }]
+};
+const mb=new Blob([JSON.stringify(manifest)],{type:"application/manifest+json"});
+const ml=document.createElement("link");
+ml.rel="manifest";ml.href=URL.createObjectURL(mb);
+document.head.appendChild(ml);
+</script>
+</body>
+</html>
