@@ -1,0 +1,1068 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Inspection">
+<meta name="theme-color" content="#dc2626">
+<title>Audit Nuisibles — Rentokil</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;background:#f3f4f6;color:#111;-webkit-tap-highlight-color:transparent;overscroll-behavior:none}
+input,textarea,select,button{font-family:inherit;font-size:14px;outline:none}
+button{cursor:pointer}
+textarea{resize:vertical}
+img{display:block;max-width:100%}
+.page{display:none;min-height:100dvh;flex-direction:column}
+.page.active{display:flex}
+.scroll{overflow-y:auto;flex:1;-webkit-overflow-scrolling:touch}
+.pad{padding:16px}
+/* Bar */
+.bar{background:#fff;border-bottom:1px solid #e5e7eb;padding:12px 16px;display:flex;align-items:center;gap:10;position:sticky;top:0;z-index:40;flex-shrink:0}
+.bar-title{flex:1;font-weight:600;font-size:16px}
+.back-btn{background:none;border:none;font-size:20px;color:#6b7280;padding:0 4px;min-width:32px;min-height:32px;display:flex;align-items:center;justify-content:center}
+/* Buttons */
+.btn-r{background:#dc2626;color:#fff;border:none;border-radius:10px;padding:10px 16px;font-weight:600;font-size:14px}
+.btn-g{background:#fff;border:1px solid #d1d5db;border-radius:10px;padding:10px 16px;font-size:14px;color:#374151}
+.btn-green{background:#16a34a;color:#fff;border:none;border-radius:10px;padding:10px 16px;font-weight:600;font-size:14px}
+button:disabled{opacity:0.5;cursor:not-allowed}
+/* Inputs */
+.inp{width:100%;border:1px solid #d1d5db;border-radius:8px;padding:10px 12px;font-size:14px;background:#fff;color:#111;margin-top:4px}
+.lbl{font-size:13px;font-weight:500;color:#374151;display:block;margin-bottom:2px;margin-top:12px}
+.inp:focus{border-color:#dc2626}
+/* Cards */
+.card{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:14px 16px;margin-bottom:8px}
+/* Chips */
+.chip{padding:6px 12px;border-radius:20px;border:1px solid #d1d5db;background:#f9fafb;color:#374151;font-size:13px;cursor:pointer;display:inline-block;margin:3px}
+.chip.active{font-weight:600}
+/* Modal overlay */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:100;align-items:flex-end}
+.overlay.open{display:flex}
+.modal{background:#fff;border-radius:18px 18px 0 0;width:100%;padding:20px;max-height:85dvh;overflow-y:auto}
+/* Plan map */
+#map-wrap{position:relative;display:inline-block;min-width:100%;cursor:crosshair}
+#map-wrap img{display:block;width:100%;user-select:none;-webkit-user-drag:none}
+.marker{position:absolute;width:28px;height:28px;border-radius:50%;border:2.5px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:bold;cursor:pointer;transform:translate(-50%,-50%);z-index:10}
+/* Grid */
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+/* Photos */
+.photo-slot{aspect-ratio:1;border:2px dashed #d1d5db;border-radius:10px;display:flex;align-items:center;justify-content:center;overflow:hidden;cursor:pointer;background:#f9fafb;font-size:24px;color:#9ca3af}
+.photo-slot img{width:100%;height:100%;object-fit:cover}
+/* Reco row */
+.reco-row{padding:9px 12px;border-radius:8px;border:1px solid #e5e7eb;background:#f9fafb;font-size:13px;display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:6px;text-align:left;width:100%;color:#111}
+.reco-row.on{background:#f0fdf4;border-color:#16a34a}
+.reco-check{font-size:16px;font-weight:bold;flex-shrink:0}
+/* Prio row */
+.prio-row{padding:9px 12px;border-radius:8px;border:1px solid #e5e7eb;background:#f9fafb;font-size:13px;cursor:pointer;margin-bottom:6px;text-align:left;width:100%;color:#111}
+/* Cover */
+.cover-bar{background:#dc2626;padding:24px 16px 32px}
+.cover-title{font-size:22px;font-weight:700;color:#fff}
+.cover-sub{font-size:12px;color:rgba(255,255,255,0.7);margin-bottom:4px}
+/* Active inspection header */
+.insp-header{background:#dc2626;padding:12px 16px;flex-shrink:0}
+.plans-scroll{display:flex;gap:8px;overflow-x:auto;padding-bottom:2px;margin-top:10px}
+.plan-tab{flex-shrink:0;font-size:11px;padding:4px 10px;border-radius:20px;cursor:pointer;border:1px solid rgba(255,255,255,0.4);background:transparent;color:rgba(255,255,255,0.9);white-space:nowrap}
+.plan-tab.sel{background:#fff;color:#dc2626;border-color:#fff}
+/* Type grid */
+.type-btn{background:#f9fafb;border-radius:12px;padding:10px 4px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;border:2px solid}
+.type-icon{font-size:22px}
+.type-lbl{font-size:10px;font-weight:600;text-align:center}
+/* Bottom bar */
+.bot-bar{background:#fff;border-top:1px solid #e5e7eb;padding:10px 16px;display:flex;gap:10px;flex-shrink:0}
+/* History card */
+.hist-card{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:10px}
+/* Tag */
+.tag{display:inline-flex;align-items:center;gap:4px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:20px;padding:4px 10px;font-size:13px;margin:3px}
+/* Toast */
+#toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#111;color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;z-index:200;display:none;white-space:nowrap}
+</style>
+</head>
+<body>
+
+<div id="toast"></div>
+
+<!-- ═══ PAGE : HOME ═══ -->
+<div id="p-home" class="page">
+  <div class="cover-bar">
+    <div class="cover-sub">Rentokil · Audit terrain</div>
+    <div class="cover-title">Inspections</div>
+  </div>
+  <div class="scroll pad" style="margin-top:-16px">
+    <div id="home-active"></div>
+    <div class="grid2" style="margin-bottom:10px">
+      <button class="btn-r" style="border-radius:12px;padding:14px 8px;width:100%" onclick="nav('p-insp-new')">+ Inspection</button>
+      <button class="btn-g" style="border-radius:12px;padding:14px 8px;width:100%" onclick="nav('p-clients')">👥 Clients</button>
+    </div>
+    <div class="grid2" style="margin-bottom:20px">
+      <button class="btn-g" style="width:100%;padding:9px 8px;font-size:13px" onclick="doExport()">💾 Exporter</button>
+      <button class="btn-g" style="width:100%;padding:9px 8px;font-size:13px" onclick="document.getElementById('imp-file').click()">📂 Importer</button>
+    </div>
+    <input id="imp-file" type="file" accept=".json" style="display:none" onchange="doImport(this)">
+    <div id="home-history"></div>
+  </div>
+</div>
+
+<!-- ═══ PAGE : CLIENTS ═══ -->
+<div id="p-clients" class="page">
+  <div class="bar">
+    <button class="back-btn" onclick="nav('p-home')">←</button>
+    <span class="bar-title">Clients</span>
+    <button class="btn-r" style="padding:6px 12px;font-size:13px" onclick="openClientForm(null)">+ Ajouter</button>
+  </div>
+  <div class="scroll pad" id="clients-list"></div>
+</div>
+
+<!-- ═══ PAGE : CLIENT FORM ═══ -->
+<div id="p-client-form" class="page">
+  <div class="bar">
+    <button class="back-btn" onclick="nav('p-clients')">←</button>
+    <span class="bar-title" id="cform-title">Nouveau client</span>
+    <button class="btn-r" style="padding:6px 12px;font-size:13px" onclick="saveClient()">Sauvegarder</button>
+  </div>
+  <div class="scroll pad">
+    <input type="hidden" id="cform-id">
+    <label class="lbl">Nom *</label>
+    <input class="inp" id="cform-name" placeholder="Ex: Panzani Marseille">
+    <label class="lbl">Adresse</label>
+    <input class="inp" id="cform-address" placeholder="131 Av. Corot, 13013 Marseille">
+    <label class="lbl">Contact</label>
+    <input class="inp" id="cform-contact" placeholder="Nom du responsable">
+  </div>
+</div>
+
+<!-- ═══ PAGE : CLIENT DETAIL ═══ -->
+<div id="p-client-detail" class="page">
+  <div class="bar">
+    <button class="back-btn" onclick="nav('p-clients')">←</button>
+    <span class="bar-title" id="cdetail-title"></span>
+    <button class="btn-r" style="padding:6px 12px;font-size:13px" onclick="openPlanForm()">+ Plan</button>
+  </div>
+  <div class="scroll pad">
+    <div id="cdetail-info"></div>
+    <div style="font-weight:600;margin-bottom:10px">Plans</div>
+    <div id="cdetail-plans"></div>
+  </div>
+</div>
+
+<!-- ═══ PAGE : PLAN FORM ═══ -->
+<div id="p-plan-form" class="page">
+  <div class="bar">
+    <button class="back-btn" onclick="nav('p-client-detail')">←</button>
+    <span class="bar-title">Ajouter un plan</span>
+    <button class="btn-r" style="padding:6px 12px;font-size:13px" onclick="savePlan()">Sauvegarder</button>
+  </div>
+  <div class="scroll pad">
+    <label class="lbl">Nom du plan *</label>
+    <input class="inp" id="pform-name" placeholder="Extérieur, RDC, Bât. trituration 3ème...">
+    <label class="lbl">Bâtiment</label>
+    <input class="inp" id="pform-building" placeholder="Bâtiment trituration">
+    <label class="lbl">Niveau / Étage</label>
+    <input class="inp" id="pform-floor" placeholder="RDC, 3ème étage...">
+    <label class="lbl">Image du plan *</label>
+    <input type="file" id="pform-file" accept="image/*" style="display:none" onchange="onPlanFile(this)">
+    <div id="pform-preview" onclick="document.getElementById('pform-file').click()"
+      style="border:2px dashed #d1d5db;border-radius:12px;padding:16px;cursor:pointer;
+      display:flex;flex-direction:column;align-items:center;justify-content:center;
+      min-height:130px;background:#f9fafb;margin-top:4px;font-size:13px;color:#9ca3af">
+      <div style="font-size:32px">📷</div>
+      <div style="margin-top:6px">Photographier ou choisir un plan</div>
+    </div>
+    <input type="hidden" id="pform-image">
+  </div>
+</div>
+
+<!-- ═══ PAGE : NOUVELLE INSPECTION ═══ -->
+<div id="p-insp-new" class="page">
+  <div class="bar">
+    <button class="back-btn" onclick="nav('p-home')">←</button>
+    <span class="bar-title">Nouvelle inspection</span>
+  </div>
+  <div class="scroll pad">
+    <label class="lbl">Client *</label>
+    <select class="inp" id="new-client-sel" style="margin-bottom:4px"></select>
+    <div id="new-no-client" style="display:none;font-size:12px;color:#dc2626;margin-top:4px">
+      Aucun client. <span style="text-decoration:underline;cursor:pointer" onclick="nav('p-client-form');openClientForm(null)">Créer un client</span>
+    </div>
+    <label class="lbl">Auditeur *</label>
+    <input class="inp" id="new-auditor" placeholder="davy.slila@rentokil-initial.com" style="margin-bottom:20px">
+    <button class="btn-r" style="width:100%;padding:14px;font-size:15px" onclick="startInspection()">Démarrer →</button>
+  </div>
+</div>
+
+<!-- ═══ PAGE : INSPECTION ACTIVE ═══ -->
+<div id="p-insp-active" class="page">
+  <div class="insp-header">
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <div>
+        <div style="font-weight:700;color:#fff;font-size:15px" id="ia-client-name"></div>
+        <div style="font-size:11px;color:rgba(255,255,255,0.8);margin-top:1px" id="ia-auditor"></div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:22px;font-weight:700;color:#fff" id="ia-count">0</div>
+        <div style="font-size:10px;color:rgba(255,255,255,0.7)">constats</div>
+      </div>
+    </div>
+    <div class="plans-scroll" id="ia-plans"></div>
+  </div>
+  <div style="flex:1;overflow:auto;background:#d1d5db" id="ia-map-area">
+    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:#9ca3af;padding:32px;min-height:280px" id="ia-no-plan">
+      <div style="font-size:48px;margin-bottom:12px">🗺️</div>
+      <div style="font-size:14px;text-align:center;line-height:1.5">Sélectionnez un plan ci-dessus<br>puis appuyez sur l'emplacement du constat</div>
+    </div>
+    <div id="map-wrap" style="display:none;position:relative;display:none">
+      <img id="map-img" src="" alt="Plan" draggable="false" style="display:block;width:100%;user-select:none">
+    </div>
+  </div>
+  <div class="bot-bar">
+    <button class="btn-g" onclick="leaveInspection()">← Accueil</button>
+    <div style="flex:1"></div>
+    <button class="btn-green" id="btn-conclude" style="display:none" onclick="nav('p-conclusion')">Conclure ✓</button>
+  </div>
+</div>
+
+<!-- ═══ PAGE : CONSTAT FORM ═══ -->
+<div id="p-constat-form" class="page">
+  <div class="bar">
+    <button class="back-btn" id="cstat-back">←</button>
+    <span class="bar-title" id="cstat-title">Nouveau constat</span>
+    <button class="btn-r" style="padding:6px 14px;font-size:13px" onclick="saveConstat()">Valider ✓</button>
+  </div>
+  <div class="scroll pad" id="cstat-body"></div>
+</div>
+
+<!-- ═══ PAGE : CONCLUSION ═══ -->
+<div id="p-conclusion" class="page">
+  <div class="bar">
+    <button class="back-btn" onclick="nav('p-insp-active')">←</button>
+    <span class="bar-title">Conclusion</span>
+  </div>
+  <div class="scroll pad">
+    <div class="card" id="concl-summary"></div>
+    <label class="lbl" style="margin-top:16px">Conclusion générale *</label>
+    <textarea class="inp" id="concl-text" rows="9" style="line-height:1.6;margin-bottom:14px"
+      placeholder="Synthèse de l'inspection, analyse du risque, plan d'actions prioritaires..."></textarea>
+    <button class="btn-g" style="width:100%;margin-bottom:10px" onclick="previewReport()">👁 Prévisualiser le rapport</button>
+    <button class="btn-green" style="width:100%;padding:14px;font-size:15px" onclick="finishInspection()">Générer le rapport PDF et terminer →</button>
+  </div>
+</div>
+
+<!-- ═══ MODALS ═══ -->
+<!-- Type picker -->
+<div class="overlay" id="modal-type">
+  <div class="modal">
+    <div style="text-align:center;font-weight:600;margin-bottom:16px;font-size:15px">Type de constat</div>
+    <div class="grid4" id="type-grid"></div>
+    <button style="width:100%;margin-top:14px;padding:10px;background:none;border:none;color:#6b7280;font-size:14px" onclick="closeModal('modal-type')">Annuler</button>
+  </div>
+</div>
+
+<!-- Constat detail -->
+<div class="overlay" id="modal-cdetail">
+  <div class="modal" id="modal-cdetail-body"></div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════
+   DONNÉES
+═══════════════════════════════════════════════════ */
+const TYPES = {
+  Rongeurs:    {e:"🐀",c:"#dc2626",subs:["Rats bruns","Rats noirs","Souris","Non identifié"],
+    sp:{"Rats bruns":[],"Rats noirs":[],"Souris":[]},
+    r:["Postes d'appâtage toxique","Pièges mécaniques","Pièges connectés Radar X","Stations Dual Autogate","Caméra Optix","Colmatage des accès","Conestop","Tir sanitaire","Inspection approfondie"]},
+  IPS:         {e:"🪲",c:"#7c3aed",subs:["Pyrales","Triboliums","Vrillettes","Charançons","Autre"],
+    sp:{Pyrales:["Teigne de la farine","Teigne des greniers"],Triboliums:["Castaneum","Confusum"],Vrillettes:["Du pain","Des meubles"]},
+    r:["Pièges à phéromones","Thermobiocide","Deep cleaning","Nettoyage régulier","Aspiration technique"]},
+  Insectes:    {e:"🐜",c:"#d97706",subs:["Fourmis","Cafards","Mouches","Moustiques","Autre"],
+    sp:{Fourmis:["Fourmi noire","Fourmi pharaon","Autre fourmi"],Cafards:["Blatte germanique","Blatte orientale"]},
+    r:["Gel appât insecticide","Traitement insecticide","Nettoyage"]},
+  Oiseaux:     {e:"🐦",c:"#0891b2",subs:["Pigeons","Moineaux","Étourneaux","Autre"],sp:{},
+    r:["Gel répulsif","Pics anti-pigeons (Ultra 1/2)","Effarouchement","Prédation biologique","Capture (cage)"]},
+  Herméticité: {e:"🚪",c:"#059669",subs:[],sp:{},r:["Bas de porte","Flexi-Armour","Colmatage Multiseal","Conestop","Bernatom"]},
+  Entretien:   {e:"🧹",c:"#ca8a04",subs:[],sp:{},r:["Entretenir végétation","Nettoyage régulier","Deep cleaning"]},
+  Stockage:    {e:"📦",c:"#9333ea",subs:[],sp:{},r:["Améliorer stockage","Rotation des stocks","Mise sous film"]},
+  Travaux:     {e:"🔧",c:"#f59e0b",subs:[],sp:{},r:["Intervention urgente","Signalétique"]}
+};
+const PRIOS = [
+  {l:"A faire le plus rapidement possible",c:"#dc2626",e:"🔴"},
+  {l:"A faire rapidement",c:"#ea580c",e:"🟠"},
+  {l:"A planifier",c:"#ca8a04",e:"🟡"},
+  {l:"Pour information",c:"#16a34a",e:"🟢"}
+];
+
+/* ═══════════════════════════════════════════════════
+   ÉTAT GLOBAL
+═══════════════════════════════════════════════════ */
+let STATE = {
+  clients:     JSON.parse(localStorage.getItem("clients")||"[]"),
+  plans:       JSON.parse(localStorage.getItem("plans")||"{}"),
+  inspections: JSON.parse(localStorage.getItem("inspections")||"[]"),
+  activeInsp:  JSON.parse(localStorage.getItem("activeInsp")||"null"),
+  constats:    JSON.parse(localStorage.getItem("constats")||"[]"),
+  currentClientId: null,
+  selPlanId:   null,
+  pendPt:      null,
+  editConstatId: null,
+  cstatType:   null,
+};
+
+function persist(keys){
+  (keys||["clients","plans","inspections","activeInsp","constats"]).forEach(k=>{
+    localStorage.setItem(k, JSON.stringify(STATE[k]));
+  });
+}
+
+/* ═══════════════════════════════════════════════════
+   NAVIGATION
+═══════════════════════════════════════════════════ */
+function nav(pageId){
+  document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
+  const p = document.getElementById(pageId);
+  if(p){ p.classList.add("active"); window.scrollTo(0,0); }
+  if(pageId==="p-home")       renderHome();
+  if(pageId==="p-clients")    renderClients();
+  if(pageId==="p-insp-new")   renderInspNew();
+  if(pageId==="p-insp-active")renderInspActive();
+  if(pageId==="p-conclusion") renderConclusion();
+}
+
+/* ═══════════════════════════════════════════════════
+   UTILITAIRES
+═══════════════════════════════════════════════════ */
+const uid  = ()=>Math.random().toString(36).substr(2,9);
+const esc  = s=>(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+const fmt  = d=>new Date(d).toLocaleDateString("fr-FR");
+
+function toast(msg){
+  const t=document.getElementById("toast");
+  t.textContent=msg; t.style.display="block";
+  setTimeout(()=>t.style.display="none",2200);
+}
+
+function closeModal(id){document.getElementById(id).classList.remove("open")}
+
+function compress(file,maxW){
+  return new Promise(res=>{
+    const fr=new FileReader();
+    fr.onload=e=>{
+      const img=new Image();
+      img.onload=()=>{
+        const c=document.createElement("canvas");
+        let w=img.width,h=img.height;
+        if(w>maxW){h=h*maxW/w;w=maxW;}
+        c.width=w;c.height=h;
+        c.getContext("2d").drawImage(img,0,0,w,h);
+        res(c.toDataURL("image/jpeg",0.65));
+      };
+      img.src=e.target.result;
+    };
+    fr.readAsDataURL(file);
+  });
+}
+
+/* ═══════════════════════════════════════════════════
+   HOME
+═══════════════════════════════════════════════════ */
+function renderHome(){
+  // Active inspection banner
+  const ha = document.getElementById("home-active");
+  if(STATE.activeInsp){
+    ha.innerHTML=`<div class="card" style="border:2px solid #16a34a;cursor:pointer;margin-bottom:12px" onclick="nav('p-insp-active')">
+      <div style="font-size:11px;color:#16a34a;font-weight:700">● EN COURS</div>
+      <div style="font-weight:700;font-size:15px;margin-top:2px">${esc(STATE.activeInsp.clientName)}</div>
+      <div style="font-size:12px;color:#6b7280;margin-top:2px">${esc(STATE.activeInsp.auditor)} · ${STATE.constats.length} constat(s) · ${fmt(STATE.activeInsp.date)}</div>
+      <div style="font-size:12px;color:#16a34a;margin-top:6px">Reprendre →</div>
+    </div>`;
+  } else { ha.innerHTML=""; }
+
+  // History
+  const hh = document.getElementById("home-history");
+  const done = STATE.inspections.filter(i=>i.status==="done").sort((a,b)=>b.date.localeCompare(a.date));
+  if(done.length===0 && STATE.clients.length===0 && !STATE.activeInsp){
+    hh.innerHTML=`<div style="text-align:center;color:#9ca3af;padding:32px">
+      <div style="font-size:40px;margin-bottom:8px">🏭</div>
+      <div style="font-size:14px">Commencez par créer un client</div>
+      <button class="btn-r" style="margin-top:14px" onclick="openClientForm(null);nav('p-client-form')">+ Créer un client</button>
+    </div>`;
+    return;
+  }
+  if(done.length===0){hh.innerHTML="";return;}
+  hh.innerHTML=`<div style="font-weight:600;font-size:14px;margin-bottom:8px">Inspections terminées</div>`+
+    done.map(i=>`<div class="hist-card">
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(i.clientName)}</div>
+        <div style="font-size:12px;color:#6b7280">${fmt(i.date)} · ${esc(i.auditor)} · ${i.constatsCount||0} constats</div>
+      </div>
+      <div style="display:flex;gap:6px;flex-shrink:0">
+        <button class="btn-g" style="padding:6px 10px;font-size:12px" onclick="generateReport(STATE.inspections.find(x=>x.id==='${i.id}'),STATE.inspections.find(x=>x.id==='${i.id}').constats||[],STATE.inspections.find(x=>x.id==='${i.id}').conclusion||'')">PDF</button>
+        <button class="btn-r" style="padding:6px 10px;font-size:12px" onclick="reopenInspection('${i.id}')">Modifier</button>
+      </div>
+    </div>`).join("");
+}
+
+function doExport(){
+  const data={version:1,exportDate:new Date().toISOString(),
+    clients:STATE.clients,plans:STATE.plans,inspections:STATE.inspections};
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download=`audit_backup_${new Date().toISOString().slice(0,10)}.json`;
+  a.click();URL.revokeObjectURL(a.href);
+  toast("Export téléchargé ✓");
+}
+
+function doImport(input){
+  const file=input.files[0]; if(!file)return;
+  const fr=new FileReader();
+  fr.onload=e=>{
+    try{
+      const d=JSON.parse(e.target.result);
+      if(!confirm(`Importer ? (${d.clients?.length||0} clients, ${d.inspections?.length||0} inspections)\nATTENTION : remplace les données actuelles.`))return;
+      if(d.clients)     STATE.clients=d.clients;
+      if(d.plans)       STATE.plans=d.plans;
+      if(d.inspections) STATE.inspections=d.inspections;
+      persist();
+      renderHome();
+      toast("Import réussi ✓");
+    }catch(err){alert("Fichier invalide");}
+  };
+  fr.readAsText(file);
+  input.value="";
+}
+
+function reopenInspection(id){
+  const i=STATE.inspections.find(x=>x.id===id);
+  if(!i)return;
+  if(!confirm(`Rouvrir l'inspection "${i.clientName}" du ${fmt(i.date)} pour la modifier ?`))return;
+  i.status="active";
+  STATE.activeInsp=i;
+  STATE.constats=i.constats||[];
+  persist(["activeInsp","constats","inspections"]);
+  nav("p-insp-active");
+}
+
+/* ═══════════════════════════════════════════════════
+   CLIENTS
+═══════════════════════════════════════════════════ */
+function renderClients(){
+  const el=document.getElementById("clients-list");
+  if(STATE.clients.length===0){
+    el.innerHTML=`<div style="text-align:center;color:#9ca3af;padding:32px">Aucun client</div>`;return;
+  }
+  el.innerHTML=STATE.clients.map(c=>`
+    <div class="card" style="cursor:pointer;display:flex;align-items:center;gap:12px" onclick="openClientDetail('${c.id}')">
+      <div style="width:42px;height:42px;border-radius:50%;background:#fef2f2;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">🏭</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:600">${esc(c.name)}</div>
+        ${c.address?`<div style="font-size:12px;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(c.address)}</div>`:""}
+      </div>
+      <span style="color:#9ca3af;font-size:20px">›</span>
+    </div>`).join("");
+}
+
+function openClientForm(client){
+  document.getElementById("cform-id").value    = client?.id||"";
+  document.getElementById("cform-name").value  = client?.name||"";
+  document.getElementById("cform-address").value=client?.address||"";
+  document.getElementById("cform-contact").value=client?.contact||"";
+  document.getElementById("cform-title").textContent=client?"Modifier client":"Nouveau client";
+  nav("p-client-form");
+}
+
+function saveClient(){
+  const id   =document.getElementById("cform-id").value;
+  const name =document.getElementById("cform-name").value.trim();
+  if(!name)return alert("Nom requis");
+  const obj={id:id||uid(),name,
+    address:document.getElementById("cform-address").value.trim(),
+    contact:document.getElementById("cform-contact").value.trim()};
+  if(id) STATE.clients=STATE.clients.map(c=>c.id===id?obj:c);
+  else   STATE.clients.push(obj);
+  persist(["clients"]);
+  toast("Client sauvegardé ✓");
+  nav("p-clients");
+}
+
+function openClientDetail(clientId){
+  STATE.currentClientId=clientId;
+  const cl=STATE.clients.find(c=>c.id===clientId);
+  document.getElementById("cdetail-title").textContent=cl.name;
+  const info=document.getElementById("cdetail-info");
+  info.innerHTML=(cl.address||cl.contact)?`
+    <div style="background:#f9fafb;border-radius:10px;padding:10px 14px;font-size:13px;color:#6b7280;margin-bottom:14px">
+      ${cl.address?`<div>📍 ${esc(cl.address)}</div>`:""}
+      ${cl.contact?`<div style="margin-top:2px">👤 ${esc(cl.contact)}</div>`:""}
+    </div>`:"";
+  const ps=STATE.plans[clientId]||[];
+  const pd=document.getElementById("cdetail-plans");
+  pd.innerHTML=ps.length===0?`<div style="text-align:center;color:#9ca3af;padding:24px">Aucun plan enregistré</div>`:
+    ps.map(p=>`<div class="card" style="display:flex;gap:12px;align-items:center">
+      <img src="${p.image}" style="width:64px;height:48px;object-fit:cover;border-radius:6px;border:1px solid #e5e7eb;flex-shrink:0">
+      <div><div style="font-weight:600;font-size:14px">${esc(p.name)}</div>
+      <div style="font-size:12px;color:#6b7280">${esc(p.building||"")}${p.floor?" · "+esc(p.floor):""}</div></div>
+    </div>`).join("");
+  nav("p-client-detail");
+}
+
+/* ═══════════════════════════════════════════════════
+   PLANS
+═══════════════════════════════════════════════════ */
+function openPlanForm(){
+  document.getElementById("pform-name").value="";
+  document.getElementById("pform-building").value="";
+  document.getElementById("pform-floor").value="";
+  document.getElementById("pform-image").value="";
+  document.getElementById("pform-preview").innerHTML=`<div style="font-size:32px">📷</div><div style="margin-top:6px;font-size:13px;color:#9ca3af">Photographier ou choisir un plan</div>`;
+  nav("p-plan-form");
+}
+
+async function onPlanFile(input){
+  const file=input.files[0];if(!file)return;
+  const img=await compress(file,1500);
+  document.getElementById("pform-image").value=img;
+  document.getElementById("pform-preview").innerHTML=`<img src="${img}" style="max-height:160px;object-fit:contain">`;
+}
+
+function savePlan(){
+  const name =document.getElementById("pform-name").value.trim();
+  const image=document.getElementById("pform-image").value;
+  if(!name||!image)return alert("Nom et image requis");
+  const p={id:uid(),name,
+    building:document.getElementById("pform-building").value.trim(),
+    floor:document.getElementById("pform-floor").value.trim(),image};
+  const cid=STATE.currentClientId;
+  if(!STATE.plans[cid]) STATE.plans[cid]=[];
+  STATE.plans[cid].push(p);
+  persist(["plans"]);
+  toast("Plan ajouté ✓");
+  openClientDetail(cid);
+}
+
+/* ═══════════════════════════════════════════════════
+   NOUVELLE INSPECTION
+═══════════════════════════════════════════════════ */
+function renderInspNew(){
+  const sel=document.getElementById("new-client-sel");
+  sel.innerHTML=`<option value="">-- Sélectionner --</option>`+
+    STATE.clients.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join("");
+  document.getElementById("new-no-client").style.display=STATE.clients.length===0?"block":"none";
+  document.getElementById("new-auditor").value="";
+}
+
+function startInspection(){
+  const cid=document.getElementById("new-client-sel").value;
+  const aud=document.getElementById("new-auditor").value.trim();
+  if(!cid||!aud)return alert("Client et auditeur requis");
+  const cl=STATE.clients.find(c=>c.id===cid);
+  const ni={id:uid(),clientId:cid,clientName:cl.name,clientAddress:cl.address||"",
+    auditor:aud,date:new Date().toISOString(),status:"active",inspectors:[aud]};
+  STATE.inspections.unshift(ni);
+  STATE.activeInsp=ni;
+  STATE.constats=[];
+  persist();
+  nav("p-insp-active");
+}
+
+/* ═══════════════════════════════════════════════════
+   INSPECTION ACTIVE
+═══════════════════════════════════════════════════ */
+function renderInspActive(){
+  if(!STATE.activeInsp)return nav("p-home");
+  document.getElementById("ia-client-name").textContent=STATE.activeInsp.clientName;
+  document.getElementById("ia-auditor").textContent=STATE.activeInsp.auditor;
+  updateConstatCount();
+  renderPlanTabs();
+  if(STATE.selPlanId){
+    const p=(STATE.plans[STATE.activeInsp.clientId]||[]).find(x=>x.id===STATE.selPlanId);
+    if(p) showPlan(p);
+  }
+}
+
+function updateConstatCount(){
+  document.getElementById("ia-count").textContent=STATE.constats.length;
+  document.getElementById("btn-conclude").style.display=STATE.constats.length>0?"block":"none";
+}
+
+function renderPlanTabs(){
+  const plans=STATE.plans[STATE.activeInsp.clientId]||[];
+  const el=document.getElementById("ia-plans");
+  el.innerHTML=plans.map(p=>`
+    <button class="plan-tab ${STATE.selPlanId===p.id?"sel":""}" onclick="selectPlan('${p.id}')">${esc(p.name)}</button>
+  `).join("")+`<button class="plan-tab" onclick="openPlanFormFromInsp()">+ plan</button>`;
+}
+
+function openPlanFormFromInsp(){
+  STATE.currentClientId=STATE.activeInsp.clientId;
+  openPlanForm();
+  // override back button
+  document.querySelector("#p-plan-form .back-btn").onclick=()=>nav("p-insp-active");
+}
+
+function selectPlan(planId){
+  STATE.selPlanId=planId;
+  const plans=STATE.plans[STATE.activeInsp.clientId]||[];
+  const p=plans.find(x=>x.id===planId);
+  if(p) showPlan(p);
+  renderPlanTabs();
+}
+
+function showPlan(plan){
+  document.getElementById("ia-no-plan").style.display="none";
+  const wrap=document.getElementById("map-wrap");
+  wrap.style.display="inline-block";
+  const img=document.getElementById("map-img");
+  img.src=plan.image;
+  img.onclick=null;
+  wrap.onclick=onMapTap;
+  renderMarkers();
+}
+
+function onMapTap(e){
+  const img=document.getElementById("map-img");
+  const r=img.getBoundingClientRect();
+  STATE.pendPt={
+    x:parseFloat(((e.clientX-r.left)/r.width*100).toFixed(1)),
+    y:parseFloat(((e.clientY-r.top)/r.height*100).toFixed(1))
+  };
+  openTypeModal();
+}
+
+function renderMarkers(){
+  // Remove old markers
+  document.querySelectorAll(".marker").forEach(m=>m.remove());
+  const wrap=document.getElementById("map-wrap");
+  const planCs=STATE.constats.filter(c=>c.planId===STATE.selPlanId);
+  planCs.forEach(c=>{
+    const t=TYPES[c.type]||{c:"#666"};
+    const n=STATE.constats.indexOf(c)+1;
+    const m=document.createElement("div");
+    m.className="marker";
+    m.style.cssText=`left:${c.x}%;top:${c.y}%;background:${t.c};`;
+    m.textContent=n;
+    m.onclick=e=>{e.stopPropagation();openConstatDetail(c.id);};
+    wrap.appendChild(m);
+  });
+}
+
+function openTypeModal(){
+  const grid=document.getElementById("type-grid");
+  grid.innerHTML=Object.entries(TYPES).map(([t,v])=>`
+    <button class="type-btn" style="border-color:${v.c}" onclick="selectType('${t}')">
+      <span class="type-icon">${v.e}</span>
+      <span class="type-lbl" style="color:${v.c}">${t}</span>
+    </button>`).join("");
+  document.getElementById("modal-type").classList.add("open");
+}
+
+function selectType(type){
+  closeModal("modal-type");
+  STATE.cstatType=type;
+  STATE.editConstatId=null;
+  buildConstatForm(type,null);
+  nav("p-constat-form");
+}
+
+function openConstatDetail(constatId){
+  const c=STATE.constats.find(x=>x.id===constatId);
+  if(!c)return;
+  const t=TYPES[c.type]||{e:"?",c:"#666"};
+  const body=document.getElementById("modal-cdetail-body");
+  body.innerHTML=`
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+      <span style="background:${t.c};color:#fff;padding:3px 10px;border-radius:6px;font-size:13px;font-weight:600">${esc(c.type)}</span>
+      ${c.subtype?`<span style="color:${t.c};font-size:13px">▸ ${esc(c.subtype)}</span>`:""}
+      ${c.species?`<span style="font-size:12px;color:#6b7280">(${esc(c.species)})</span>`:""}
+      <span style="margin-left:auto;font-size:15px">${PRIOS[c.priority]?.e||"🔴"}</span>
+    </div>
+    ${c.photos?.some(Boolean)?`<div style="display:flex;gap:6px;margin-bottom:10px">${c.photos.map((ph,i)=>ph?`<img src="${ph}" style="width:80px;height:60px;object-fit:cover;border-radius:6px">`:``).join("")}</div>`:""}
+    ${c.observations?`<div style="font-size:13px;color:#374151;margin-bottom:8px;line-height:1.5">${esc(c.observations)}</div>`:""}
+    ${c.recommendations?.length?`<div style="font-size:12px;color:#6b7280;line-height:1.6">${c.recommendations.map(esc).join(" · ")}</div>`:""}
+    <div style="display:flex;gap:8px;margin-top:14px">
+      <button class="btn-r" style="flex:1" onclick="editConstat('${c.id}')">Modifier</button>
+      <button class="btn-g" style="flex:1;color:#dc2626;border-color:#dc2626" onclick="deleteConstat('${c.id}')">Supprimer</button>
+    </div>
+    <button style="width:100%;margin-top:8px;padding:10px;background:none;border:none;color:#6b7280;font-size:13px;cursor:pointer" onclick="closeModal('modal-cdetail')">Fermer</button>`;
+  document.getElementById("modal-cdetail").classList.add("open");
+}
+
+function editConstat(id){
+  closeModal("modal-cdetail");
+  const c=STATE.constats.find(x=>x.id===id);
+  if(!c)return;
+  STATE.cstatType=c.type;
+  STATE.editConstatId=id;
+  buildConstatForm(c.type,c);
+  nav("p-constat-form");
+}
+
+function deleteConstat(id){
+  if(!confirm("Supprimer ce constat ?"))return;
+  STATE.constats=STATE.constats.filter(c=>c.id!==id);
+  persist(["constats"]);
+  closeModal("modal-cdetail");
+  updateConstatCount();
+  renderMarkers();
+  toast("Constat supprimé");
+}
+
+function leaveInspection(){
+  persist(["constats","activeInsp"]);
+  nav("p-home");
+}
+
+/* ═══════════════════════════════════════════════════
+   FORMULAIRE CONSTAT
+═══════════════════════════════════════════════════ */
+let _cstatPhotos=[];
+let _cstatRecos=[];
+let _cstatSubtype="";
+let _cstatSpecies="";
+let _cstatPriority=0;
+
+function buildConstatForm(type,existing){
+  _cstatPhotos  =[...(existing?.photos||[])];
+  _cstatRecos   =[...(existing?.recommendations||[])];
+  _cstatSubtype =existing?.subtype||"";
+  _cstatSpecies =existing?.species||"";
+  _cstatPriority=existing?.priority??0;
+
+  const ti=TYPES[type]||{e:"?",c:"#666",subs:[],sp:{},r:[]};
+  document.getElementById("cstat-title").textContent=existing?"Modifier constat":"Nouveau constat";
+  document.getElementById("cstat-back").onclick=()=>nav("p-insp-active");
+
+  const plan=STATE.selPlanId?(STATE.plans[STATE.activeInsp?.clientId]||[]).find(p=>p.id===STATE.selPlanId):null;
+
+  const body=document.getElementById("cstat-body");
+  body.innerHTML=`
+    ${plan?`<div style="background:#f9fafb;border-radius:8px;padding:8px 12px;font-size:12px;color:#6b7280;margin-bottom:14px">📍 ${esc([plan.building,plan.name].filter(Boolean).join(" · "))}</div>`:""}
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
+      <span style="font-size:26px">${ti.e}</span>
+      <span style="font-weight:700;font-size:17px;color:${ti.c}">${type}</span>
+    </div>
+
+    ${ti.subs.length?`<div style="margin-bottom:14px">
+      <label class="lbl">Sous-type</label>
+      <div id="cf-subs" style="margin-top:6px">${ti.subs.map(s=>`
+        <button class="chip ${_cstatSubtype===s?"active":""}" style="${_cstatSubtype===s?`background:${ti.c};color:#fff;border-color:${ti.c}`:""}"
+          onclick="setCstatSubtype('${s}','${type}')">${esc(s)}</button>`).join("")}</div>
+    </div>`:""}
+
+    <div id="cf-species-wrap" style="margin-bottom:14px;${(!_cstatSubtype||!ti.sp[_cstatSubtype]?.length)?"display:none":""}">
+      <label class="lbl">Espèce</label>
+      <div id="cf-species" style="margin-top:6px"></div>
+    </div>
+
+    <div style="margin-bottom:14px">
+      <label class="lbl">Priorité</label>
+      <div id="cf-prios" style="margin-top:6px">
+        ${PRIOS.map((p,i)=>`<button class="prio-row" style="${_cstatPriority===i?`background:${p.c}18;border:2px solid ${p.c}`:""}"
+          onclick="setCstatPriority(${i})">${p.e} ${p.l}</button>`).join("")}
+      </div>
+    </div>
+
+    <div style="margin-bottom:14px">
+      <label class="lbl">Photos (max 3)</label>
+      <div class="grid3" style="margin-top:6px" id="cf-photos">
+        ${[0,1,2].map(i=>`
+          <div class="photo-slot" id="ph-slot-${i}" onclick="triggerPhoto(${i})">
+            ${_cstatPhotos[i]?`<img src="${_cstatPhotos[i]}" style="width:100%;height:100%;object-fit:cover">`:`📷`}
+          </div>
+          <input type="file" accept="image/*" capture="environment" id="ph-inp-${i}" style="display:none"
+            onchange="onConstatPhoto(${i},this)">`).join("")}
+      </div>
+    </div>
+
+    <div style="margin-bottom:14px">
+      <label class="lbl">Observations</label>
+      <textarea class="inp" id="cf-obs" rows="3" placeholder="Décrivez ce que vous observez..." style="line-height:1.5">${esc(existing?.observations||"")}</textarea>
+    </div>
+
+    <div style="margin-bottom:14px">
+      <label class="lbl">Actions recommandées</label>
+      <div id="cf-recos" style="margin-top:6px">
+        ${buildRecosHTML(ti.r)}
+      </div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <input class="inp" id="cf-custom-reco" placeholder="+ Autre recommandation" style="flex:1;margin-top:0">
+        <button class="btn-r" style="padding:0 14px;flex-shrink:0" onclick="addCustomReco()">+</button>
+      </div>
+    </div>
+  `;
+  // render species if existing subtype
+  if(_cstatSubtype) renderSpeciesChips(type);
+}
+
+function buildRecosHTML(list){
+  const allRecos=[...list,..._cstatRecos.filter(r=>!list.includes(r))];
+  return allRecos.map(r=>`
+    <button class="reco-row ${_cstatRecos.includes(r)?"on":""}" onclick="toggleReco('${r.replace(/'/g,"\\'")}')">
+      <span class="reco-check" style="color:${_cstatRecos.includes(r)?"#16a34a":"#d1d5db"}">${_cstatRecos.includes(r)?"✓":"○"}</span>
+      ${esc(r)}
+    </button>`).join("");
+}
+
+function setCstatSubtype(s,type){
+  _cstatSubtype=s;_cstatSpecies="";
+  const ti=TYPES[type];
+  // update chips
+  document.querySelectorAll("#cf-subs .chip").forEach(btn=>{
+    const active=btn.textContent===s;
+    btn.classList.toggle("active",active);
+    btn.style.background=active?ti.c:"";
+    btn.style.color=active?"#fff":"";
+    btn.style.borderColor=active?ti.c:"";
+  });
+  renderSpeciesChips(type);
+}
+
+function renderSpeciesChips(type){
+  const ti=TYPES[type];
+  const wrap=document.getElementById("cf-species-wrap");
+  const sp=ti.sp[_cstatSubtype]||[];
+  if(!sp.length){wrap.style.display="none";return;}
+  wrap.style.display="block";
+  document.getElementById("cf-species").innerHTML=sp.map(s=>`
+    <button class="chip ${_cstatSpecies===s?"active":""}" style="${_cstatSpecies===s?`background:${ti.c};color:#fff;border-color:${ti.c}`:""}"
+      onclick="setCstatSpecies('${s}','${type}')">${esc(s)}</button>`).join("");
+}
+
+function setCstatSpecies(s,type){
+  _cstatSpecies=s;
+  const ti=TYPES[type];
+  document.querySelectorAll("#cf-species .chip").forEach(btn=>{
+    const active=btn.textContent===s;
+    btn.classList.toggle("active",active);
+    btn.style.background=active?ti.c:"";
+    btn.style.color=active?"#fff":"";
+    btn.style.borderColor=active?ti.c:"";
+  });
+}
+
+function setCstatPriority(i){
+  _cstatPriority=i;
+  document.querySelectorAll("#cf-prios .prio-row").forEach((btn,idx)=>{
+    const p=PRIOS[idx];
+    btn.style.background=idx===i?p.c+"18":"";
+    btn.style.border=idx===i?`2px solid ${p.c}`:"1px solid #e5e7eb";
+  });
+}
+
+function toggleReco(r){
+  if(_cstatRecos.includes(r)) _cstatRecos=_cstatRecos.filter(x=>x!==r);
+  else _cstatRecos.push(r);
+  const ti=TYPES[STATE.cstatType];
+  document.getElementById("cf-recos").innerHTML=buildRecosHTML(ti?.r||[]);
+}
+
+function addCustomReco(){
+  const inp=document.getElementById("cf-custom-reco");
+  const v=inp.value.trim();
+  if(!v)return;
+  if(!_cstatRecos.includes(v)) _cstatRecos.push(v);
+  inp.value="";
+  const ti=TYPES[STATE.cstatType];
+  document.getElementById("cf-recos").innerHTML=buildRecosHTML(ti?.r||[]);
+}
+
+function triggerPhoto(i){document.getElementById(`ph-inp-${i}`).click();}
+
+async function onConstatPhoto(i,input){
+  const file=input.files[0];if(!file)return;
+  const img=await compress(file,900);
+  _cstatPhotos[i]=img;
+  const slot=document.getElementById(`ph-slot-${i}`);
+  slot.innerHTML=`<img src="${img}" style="width:100%;height:100%;object-fit:cover">`;
+}
+
+function saveConstat(){
+  const plan=STATE.selPlanId?(STATE.plans[STATE.activeInsp?.clientId]||[]).find(p=>p.id===STATE.selPlanId):null;
+  const existing=STATE.editConstatId?STATE.constats.find(c=>c.id===STATE.editConstatId):null;
+  const nc={
+    id:STATE.editConstatId||uid(),
+    planId:plan?.id,
+    planName:plan?.name||"Zone non définie",
+    x:STATE.pendPt?.x??existing?.x,
+    y:STATE.pendPt?.y??existing?.y,
+    type:STATE.cstatType,
+    subtype:_cstatSubtype,
+    species:_cstatSpecies,
+    priority:_cstatPriority,
+    observations:document.getElementById("cf-obs").value.trim(),
+    recommendations:[..._cstatRecos],
+    photos:[..._cstatPhotos]
+  };
+  if(STATE.editConstatId) STATE.constats=STATE.constats.map(c=>c.id===STATE.editConstatId?nc:c);
+  else STATE.constats.push(nc);
+  persist(["constats"]);
+  toast("Constat enregistré ✓");
+  nav("p-insp-active");
+  updateConstatCount();
+  renderMarkers();
+}
+
+/* ═══════════════════════════════════════════════════
+   CONCLUSION
+═══════════════════════════════════════════════════ */
+function renderConclusion(){
+  const byType=STATE.constats.reduce((a,c)=>{a[c.type]=(a[c.type]||0)+1;return a},{});
+  const summary=document.getElementById("concl-summary");
+  summary.innerHTML=`<div style="font-weight:600;margin-bottom:10px">${STATE.constats.length} constat(s)</div>
+    <div style="display:flex;flex-wrap:wrap">${Object.entries(byType).map(([t,n])=>`
+      <div class="tag"><span>${TYPES[t]?.e||""}</span>
+      <span style="color:${TYPES[t]?.c};font-weight:600">${t}</span>
+      <span style="color:#6b7280">×${n}</span></div>`).join("")}
+    </div>`;
+  document.getElementById("concl-text").value=STATE.activeInsp?.conclusion||"";
+}
+
+function previewReport(){
+  const c=document.getElementById("concl-text").value.trim();
+  generateReport(STATE.activeInsp,STATE.constats,c);
+}
+
+function finishInspection(){
+  const c=document.getElementById("concl-text").value.trim();
+  if(!c)return alert("Veuillez saisir une conclusion");
+  const done={...STATE.activeInsp,status:"done",conclusion:c,
+    constats:[...STATE.constats],constatsCount:STATE.constats.length};
+  STATE.inspections=STATE.inspections.map(i=>i.id===STATE.activeInsp.id?done:i);
+  generateReport(done,STATE.constats,c);
+  STATE.activeInsp=null;
+  STATE.constats=[];
+  persist();
+  toast("Inspection terminée ✓");
+  nav("p-home");
+}
+
+/* ═══════════════════════════════════════════════════
+   RAPPORT HTML/PDF
+═══════════════════════════════════════════════════ */
+function generateReport(insp,constats,conclusion){
+  const safeC=Array.isArray(constats)?constats:[];
+  const byPlan=safeC.reduce((a,c)=>{
+    const k=c.planName||"Zone non définie";
+    if(!a[k])a[k]=[];a[k].push(c);return a;
+  },{});
+  const pl=["🔴 A faire le plus rapidement possible","🟠 A faire rapidement","🟡 A planifier","🟢 Pour information"];
+
+  const html=`<!DOCTYPE html><html lang="fr"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rapport audit — ${esc(insp.clientName)}</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Arial,sans-serif;color:#333;font-size:10.5pt}
+.page{page-break-after:always;padding:22px}
+.cover{background:#c00;color:#fff;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px;text-align:center}
+.cover h1{font-size:24pt;margin-bottom:6px}.cover h2{font-size:14pt;font-weight:normal;margin-bottom:28px}
+.it{background:#fff;color:#333;border-collapse:collapse;width:80%;margin:0 auto}
+.it td{padding:9px 14px;border-bottom:1px solid #eee}
+.it td:first-child{font-weight:bold;background:#f9f9f9;width:35%}
+.zone{color:#c00;font-size:11pt;font-weight:bold;margin:0 0 10px;border-bottom:2px solid #c00;padding-bottom:3px}
+.ct{margin-bottom:16px;border:1px solid #ddd;border-radius:3px;overflow:hidden}
+.ch{background:#f5f5f5;padding:7px 10px;border-bottom:1px solid #ddd;font-size:10pt}
+.badge{color:#fff;padding:2px 8px;border-radius:3px;font-size:8.5pt;font-weight:bold}
+.pt{width:100%;border-collapse:collapse}.pt td{border:1px solid #ddd;padding:4px;text-align:center;vertical-align:top;width:25%}
+.pt img{width:100%;height:130px;object-fit:cover}.pl{font-size:7.5pt;color:#666;margin-bottom:2px}
+.ph{height:130px;background:#f5f5f5;display:flex;align-items:center;justify-content:center;color:#ccc;font-size:20pt}
+.ot{border-collapse:collapse;width:100%}.ot td{border:1px solid #ddd;padding:7px;font-size:9.5pt;vertical-align:top}
+.ot td:first-child{font-weight:bold;background:#fafafa;width:22%;white-space:nowrap}
+h2.s{color:#c00;font-size:12pt;border-bottom:2px solid #c00;padding-bottom:3px;margin:16px 0 10px}
+.at{width:100%;border-collapse:collapse;font-size:9.5pt}
+.at th{background:#c00;color:#fff;padding:7px;text-align:left}
+.at td{padding:6px 7px;border:1px solid #ddd}
+.at tr:nth-child(even) td{background:#fafafa}
+.concl{border-left:4px solid #c00;padding:10px 14px;background:#fafafa;margin:10px 0;line-height:1.6;font-size:10pt}
+@media print{.page{page-break-after:always}.noprint{display:none!important}}
+@media screen{body{max-width:900px;margin:0 auto}.page{margin-bottom:20px;box-shadow:0 2px 8px rgba(0,0,0,.12)}}
+</style></head><body>
+<button class="noprint" onclick="window.print()"
+  style="position:fixed;bottom:20px;right:20px;background:#c00;color:#fff;border:none;
+  padding:12px 20px;border-radius:8px;cursor:pointer;font-size:14px;font-weight:bold;
+  box-shadow:0 2px 8px rgba(0,0,0,.3);z-index:999">🖨️ Imprimer / PDF</button>
+
+<div class="page cover">
+  <div style="font-size:36pt;margin-bottom:8px">🐀</div>
+  <h1>Rapport d'audit nuisibles</h1><h2>${esc(insp.clientName)}</h2>
+  <table class="it">
+    <tr><td>Client :</td><td>${esc(insp.clientName)}</td></tr>
+    ${insp.clientAddress?`<tr><td>Adresse :</td><td>${esc(insp.clientAddress)}</td></tr>`:""}
+    <tr><td>Date :</td><td>${fmt(insp.date)}</td></tr>
+    <tr><td>Auditeur :</td><td>${esc(insp.auditor)}</td></tr>
+    ${insp.inspectors?.length>1?`<tr><td>Équipe :</td><td>${insp.inspectors.map(esc).join(", ")}</td></tr>`:""}
+    <tr><td>Nb constats :</td><td><b>${safeC.length}</b></td></tr>
+  </table>
+  <div style="margin-top:20px;font-size:10pt;color:rgba(255,255,255,.6)">
+    Généré le ${fmt(new Date())} — Document non officiel / usage interne
+  </div>
+</div>
+
+${Object.entries(byPlan).map(([planName,cs])=>`
+<div class="page">
+  <div class="zone">📍 ZONE : ${esc(planName)}</div>
+  ${cs.map(c=>{const t=TYPES[c.type]||{c:"#666"};return `
+  <div class="ct">
+    <div class="ch">
+      <span class="badge" style="background:${t.c}">${esc(c.type)}</span>
+      ${c.subtype?`<span style="color:${t.c};font-size:9.5pt;margin-left:6px">▸ ${esc(c.subtype)}</span>`:""}
+      ${c.species?`<span style="font-size:9pt;color:#666;margin-left:4px">(${esc(c.species)})</span>`:""}
+      <span style="float:right;font-size:9pt">${pl[c.priority]||pl[0]}</span>
+    </div>
+    <table class="pt"><tr>
+      <td><div class="pl">Localisation</div><div class="ph">🗺️</div></td>
+      ${[0,1,2].map(j=>`<td><div class="pl">Photo ${j+1}</div>${c.photos?.[j]?`<img src="${c.photos[j]}" alt=""/>`:`<div class="ph"></div>`}</td>`).join("")}
+    </tr></table>
+    <table class="ot">
+      <tr><td>Observations :</td><td>${esc(c.observations)||"—"}</td></tr>
+      <tr><td>Actions recommandées :</td><td>${c.recommendations?.map(esc).join(" , ")||"—"}</td></tr>
+    </table>
+  </div>`;}).join("")}
+</div>`).join("")}
+
+<div class="page">
+  <h2 class="s">CONCLUSION GÉNÉRALE</h2>
+  <div class="concl">${esc(conclusion).replace(/\n/g,"<br>")}</div>
+  <h2 class="s">PLAN D'ACTIONS PRIORITAIRES</h2>
+  <table class="at">
+    <tr><th>Zone</th><th>Problème</th><th>Priorité</th><th>Actions recommandées</th></tr>
+    ${safeC.map(c=>`<tr>
+      <td>${esc(c.planName)||"—"}</td>
+      <td>${esc(c.type)}${c.subtype?" – "+esc(c.subtype):""}</td>
+      <td>${["🔴","🟠","🟡","🟢"][c.priority]||"🔴"}</td>
+      <td>${c.recommendations?.map(esc).join(", ")||"—"}</td>
+    </tr>`).join("")}
+  </table>
+  <div style="display:flex;justify-content:space-between;margin-top:40px">
+    <div style="width:45%"><b>Signature de l'auditeur :</b><br><br>${esc(insp.auditor)}<div style="border-top:1px solid #999;margin-top:30px"></div></div>
+    <div style="width:45%"><b>Signature du client :</b><div style="border-top:1px solid #999;margin-top:56px"></div></div>
+  </div>
+</div>
+</body></html>`;
+
+  const w=window.open("","_blank");
+  if(w){w.document.write(html);w.document.close();}
+  else alert("Autorisez les popups pour générer le rapport.");
+}
+
+/* ═══════════════════════════════════════════════════
+   PWA MANIFEST
+═══════════════════════════════════════════════════ */
+const manifest={name:"Audit Nuisibles",short_name:"Inspection",start_url:"./",
+  display:"standalone",background_color:"#ffffff",theme_color:"#dc2626",
+  icons:[{src:"data:image/svg+xml,"+encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="20" fill="#dc2626"/><text y="72" x="10" font-size="70">🐀</text></svg>'),
+    sizes:"512x512",type:"image/svg+xml",purpose:"any maskable"}]};
+const mb=new Blob([JSON.stringify(manifest)],{type:"application/manifest+json"});
+const ml=document.createElement("link");ml.rel="manifest";ml.href=URL.createObjectURL(mb);
+document.head.appendChild(ml);
+
+/* ═══════════════════════════════════════════════════
+   DÉMARRAGE
+═══════════════════════════════════════════════════ */
+nav("p-home");
+</script>
+</body>
+</html>
