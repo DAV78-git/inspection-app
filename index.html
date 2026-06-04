@@ -180,11 +180,13 @@ button{cursor:pointer}textarea{resize:vertical}img{display:block;max-width:100%}
       <img id="map-img" src="" alt="Plan" draggable="false" style="display:block;width:100%;user-select:none">
     </div>
   </div>
-  <div class="bot-bar">
-    <button class="btn-g" onclick="leaveInspection()">← Accueil</button>
-    <div style="flex:1"></div>
-    <button class="btn-green" id="btn-conclude" style="display:none" onclick="nav('p-conclusion')">Conclure ✓</button>
-  </div>
+  <!-- Bas -->
+    <div class="bot-bar">
+      <button class="btn-g" onclick="leaveInspection()">← Accueil</button>
+      <button class="btn-g" style="color:#dc2626;border-color:#dc2626;font-size:13px" onclick="deleteActiveInsp()">🗑 Supprimer</button>
+      <div style="flex:1"></div>
+      <button class="btn-green" id="btn-conclude" style="display:none" onclick="nav('p-conclusion')">Conclure ✓</button>
+    </div>
 </div>
 
 <!-- CONSTAT FORM -->
@@ -553,6 +555,12 @@ function deleteConstat(id){
   S.constats=S.constats.filter(c=>c.id!==id);persist(["constats"]);
   closeModal("modal-cdetail");updateConstatCount();renderMarkers();toast("Constat supprimé");
 }
+function deleteActiveInsp(){
+  if(!confirm("Supprimer définitivement cette inspection et tous ses constats ?"))return;
+  S.inspections=S.inspections.filter(i=>i.id!==S.activeInsp?.id);
+  S.activeInsp=null;S.constats=[];S.selPlanId=null;
+  persist();toast("Inspection supprimée");nav("p-home");
+}
 function leaveInspection(){persist(["constats","activeInsp"]);nav("p-home");}
 
 /* ═══ CONSTAT FORM ══════════════════════════════════════ */
@@ -719,8 +727,244 @@ function finishInspection(){
   S.activeInsp=null;S.constats=[];persist();toast("Inspection terminée ✓");nav("p-home");
 }
 
-/* ═══ RAPPORT PDF — STYLE myRentokil ════════════════════ */
+/* ═══ RAPPORT PDF ════════════════════════════════════ */
 function generateReport(insp,constats,conclusion){
+  const C=Array.isArray(constats)?constats:[];
+  const byType=C.reduce((a,c)=>{a[c.type]=(a[c.type]||0)+1;return a},{});
+  const RED="#e8291c", NAVY="#1a2535";
+  const pCol=["#e8291c","#ea580c","#ca8a04","#16a34a"];
+  const pDot=["🔴","🟠","🟡","🟢"];
+  const pLbl=["A faire le plus rapidement possible","A faire rapidement","A planifier","Pour information"];
+  const N=2+C.length+(C.length>0?1:0)+1;
+  let sn=1;
+
+  /* ── Helpers ── */
+  const foot=(info)=>`
+    <div style="background:${RED};height:9mm;display:flex;align-items:center;
+      justify-content:space-between;padding:0 10mm;flex-shrink:0;font-family:Arial">
+      <span style="font-size:7.5pt;color:rgba(255,255,255,0.75)">${info||""}</span>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:8pt;color:#fff;font-weight:700">${sn++} / ${N}</span>
+        <span style="width:1px;height:14px;background:rgba(255,255,255,0.4);display:inline-block"></span>
+        <span style="font-size:11pt;font-weight:900;color:#fff">Rentokil</span>
+      </div>
+    </div>`;
+
+  /* ── SLIDE 1 — COUVERTURE : fond rouge, Rentokil blanc ── */
+  const s1=`
+  <div style="width:297mm;height:210mm;display:flex;page-break-after:always;overflow:hidden;font-family:Arial,sans-serif">
+    <!-- GAUCHE : fond rouge -->
+    <div style="width:55%;background:${RED};padding:12mm;display:flex;flex-direction:column;justify-content:space-between">
+      <!-- Rentokil : blanc sur rouge, un seul mot, police simple -->
+      <div style="font-size:52pt;font-weight:900;color:#fff;line-height:1;white-space:nowrap">Rentokil</div>
+      <div>
+        <div style="width:30mm;height:3px;background:rgba(255,255,255,0.5);margin-bottom:5mm;border-radius:2px"></div>
+        <div style="font-size:8pt;color:rgba(255,255,255,0.65);letter-spacing:2px;text-transform:uppercase;margin-bottom:9mm">The Experts in Pest Control</div>
+        <div style="font-size:21pt;font-weight:700;color:#fff;line-height:1.2;margin-bottom:3mm">Rapport d'audit nuisibles</div>
+        <div style="font-size:13pt;color:rgba(255,255,255,0.9);margin-bottom:8mm">${esc(insp.clientName)}</div>
+        <div style="font-size:9pt;color:rgba(255,255,255,0.6);margin-bottom:2mm">Date d'édition</div>
+        <div style="font-size:11pt;color:#fff;font-weight:600;margin-bottom:3mm">${fmt(insp.date)}</div>
+        <div style="font-size:9pt;color:rgba(255,255,255,0.8)">${esc(insp.auditor)}</div>
+        ${insp.clientAddress?`<div style="font-size:8pt;color:rgba(255,255,255,0.55);margin-top:2mm">${esc(insp.clientAddress)}</div>`:""}
+      </div>
+      <div style="font-size:7pt;color:rgba(255,255,255,0.3)">Document non officiel · Usage interne Rentokil</div>
+    </div>
+    <!-- DROITE : fond blanc -->
+    <div style="width:45%;background:#fff;padding:10mm 12mm;display:flex;flex-direction:column;justify-content:space-between;border-left:4px solid ${RED}">
+      <!-- Rentokil : rouge sur blanc, un seul mot -->
+      <div>
+        <div style="font-size:34pt;font-weight:900;color:${RED};line-height:1;white-space:nowrap;margin-bottom:2mm">Rentokil</div>
+        <div style="height:2px;background:${RED};margin-bottom:7mm"></div>
+      </div>
+      <table style="width:100%;border-collapse:collapse;font-size:9.5pt">
+        <tr><td style="padding:5px 0;border-bottom:1px solid #eee;color:${RED};font-weight:700;width:40%">Client</td>
+            <td style="padding:5px 0;border-bottom:1px solid #eee;font-weight:600">${esc(insp.clientName)}</td></tr>
+        ${insp.clientAddress?`<tr><td style="padding:5px 0;border-bottom:1px solid #eee;color:${RED};font-weight:700">Adresse</td>
+            <td style="padding:5px 0;border-bottom:1px solid #eee;color:#555">${esc(insp.clientAddress)}</td></tr>`:""}
+        <tr><td style="padding:5px 0;border-bottom:1px solid #eee;color:${RED};font-weight:700">Date</td>
+            <td style="padding:5px 0;border-bottom:1px solid #eee">${fmt(insp.date)}</td></tr>
+        <tr><td style="padding:5px 0;border-bottom:1px solid #eee;color:${RED};font-weight:700">Auditeur</td>
+            <td style="padding:5px 0;border-bottom:1px solid #eee">${esc(insp.auditor)}</td></tr>
+        <tr><td style="padding:5px 0;color:${RED};font-weight:700">Nb constats</td>
+            <td style="padding:5px 0;font-size:22pt;font-weight:900;color:${RED};line-height:1">${C.length}</td></tr>
+      </table>
+      <div style="border-top:1px solid #eee;padding-top:4mm">
+        <div style="font-size:7pt;color:#bbb;text-transform:uppercase;letter-spacing:1px;margin-bottom:3mm">Services Rentokil Initial</div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px">
+          ${["Dératisation","Désinsectisation","Désinfection","Oiseaux","IPS","Audit"].map(s=>
+            `<span style="background:#fafafa;border:1px solid #eee;padding:2px 8px;border-radius:3px;font-size:7.5pt;color:#555">${s}</span>`
+          ).join("")}
+        </div>
+      </div>
+    </div>
+  </div>`;
+  sn++;
+
+  /* ── SLIDE 2 — SYNTHÈSE ── */
+  const s2=`
+  <div style="width:297mm;height:210mm;display:flex;flex-direction:column;page-break-after:always;overflow:hidden;background:#fff;font-family:Arial,sans-serif">
+    <div style="background:${NAVY};padding:5mm 10mm;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
+      <span style="font-size:14pt;font-weight:700;color:#fff">Synthèse de l'inspection</span>
+      <span style="font-size:13pt;font-weight:900;color:#fff">Rentokil</span>
+    </div>
+    <div style="flex:1;padding:6mm 10mm;display:flex;gap:8mm">
+      <div style="flex:1">
+        <div style="font-size:8pt;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:1px;margin-bottom:4mm">Par type de nuisible</div>
+        ${Object.entries(byType).map(([t,n])=>{const ti=TYPES[t]||{e:"?",c:"#666"};return `
+        <div style="display:flex;align-items:center;gap:10px;padding:3mm 4mm;border-radius:6px;background:#f6f7f9;border-left:4px solid ${ti.c};margin-bottom:3mm">
+          <div style="font-size:18pt;font-weight:900;color:${ti.c};min-width:28px;text-align:center">${n}</div>
+          <div>
+            <div style="font-size:10pt;font-weight:600">${ti.e} ${esc(t)}</div>
+            <div style="font-size:8pt;color:#888">${n} constat${n>1?"s":""}</div>
+          </div>
+        </div>`}).join("")}
+      </div>
+      <div style="flex:1">
+        <div style="font-size:8pt;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:1px;margin-bottom:4mm">Par priorité</div>
+        ${PRIOS.map((p,i)=>{const n=C.filter(c=>c.priority===i).length;return `
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:3mm;padding:3mm 4mm;border-radius:4px;background:#f6f7f9">
+          <div style="width:12px;height:12px;border-radius:50%;background:${p.c};flex-shrink:0"></div>
+          <div style="font-size:9pt;flex:1;color:#333">${p.l}</div>
+          <div style="font-size:13pt;font-weight:700;color:${p.c}">${n}</div>
+        </div>`}).join("")}
+      </div>
+    </div>
+    ${foot(esc(insp.clientName)+" — Synthèse")}
+  </div>`;
+
+  /* ── SLIDES CONSTATS — 1 PAR SLIDE ── */
+  const sC=C.map((c,idx)=>{
+    const t=TYPES[c.type]||{e:"?",c:"#666"};
+    const pr=PRIOS[c.priority]||PRIOS[0];
+    const ph=(img,lbl)=>img
+      ?`<div style="flex:1;position:relative;overflow:hidden;background:#111">
+          <img src="${img}" style="width:100%;height:100%;object-fit:cover;display:block">
+          <div style="position:absolute;bottom:0;left:0;right:0;padding:5px 8px;background:linear-gradient(transparent,rgba(0,0,0,0.65))">
+            <span style="font-size:8pt;color:#fff;font-weight:600">${lbl}</span>
+          </div>
+        </div>`
+      :`<div style="flex:1;background:#dde1e7;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#aaa;gap:4px">
+          <span style="font-size:18pt">—</span>
+          <span style="font-size:7.5pt">${lbl}</span>
+        </div>`;
+    return `
+    <div style="width:297mm;height:210mm;display:flex;flex-direction:column;page-break-after:always;overflow:hidden;background:#fff;font-family:Arial,sans-serif">
+      <!-- HEADER -->
+      <div style="background:${NAVY};padding:3.5mm 10mm;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
+        <div style="display:flex;align-items:center;gap:8px;min-width:0;overflow:hidden">
+          <span style="background:${t.c};color:#fff;padding:2px 10px;border-radius:4px;font-size:9pt;font-weight:700;white-space:nowrap;flex-shrink:0">N°${idx+1} — ${t.e} ${esc(c.type)}</span>
+          ${c.subtype?`<span style="color:rgba(255,255,255,0.7);font-size:8.5pt;white-space:nowrap;flex-shrink:0">▸ ${esc(c.subtype)}</span>`:""}
+          ${c.species?`<span style="color:rgba(255,255,255,0.45);font-size:8pt">(${esc(c.species)})</span>`:""}
+          <span style="color:rgba(255,255,255,0.4);font-size:8pt;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">📍 ${esc(c.planName||"")}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;flex-shrink:0">
+          <span style="background:${pCol[c.priority]||pCol[0]};color:#fff;padding:2px 10px;border-radius:10px;font-size:8pt;font-weight:600;white-space:nowrap">${pr.e} ${esc(pr.l)}</span>
+          <span style="font-size:11pt;font-weight:900;color:#fff;white-space:nowrap">Rentokil</span>
+        </div>
+      </div>
+      <!-- 4 PHOTOS PLEINE LARGEUR -->
+      <div style="display:flex;gap:2px;background:#444;height:120mm;flex-shrink:0">
+        ${ph(c.locationSnap,"Localisation")}
+        ${ph(c.photos?.[0],"Photo 1")}
+        ${ph(c.photos?.[1],"Photo 2")}
+        ${ph(c.photos?.[2],"Photo 3")}
+      </div>
+      <!-- TEXTE SOUS LES PHOTOS -->
+      <div style="flex:1;display:flex;border-top:3px solid ${RED};overflow:hidden">
+        <div style="flex:1;padding:4mm 7mm;border-right:1px solid #eee;overflow:hidden">
+          <div style="font-size:7pt;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:${RED};margin-bottom:2.5mm">Observations</div>
+          <div style="font-size:9.5pt;color:#333;line-height:1.6">${esc(c.observations)||"—"}</div>
+        </div>
+        <div style="flex:1;padding:4mm 7mm;background:#f7f8fa;overflow:hidden">
+          <div style="font-size:7pt;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:${RED};margin-bottom:2.5mm">Actions recommandées</div>
+          ${c.recommendations?.length
+            ?c.recommendations.map(r=>`<div style="display:flex;gap:6px;padding:1.5mm 0;border-bottom:0.5px solid #e8e8e8;align-items:flex-start">
+                <span style="color:${RED};font-weight:900;flex-shrink:0;font-size:11pt;line-height:1.1">›</span>
+                <span style="font-size:9.5pt;color:#333;line-height:1.4">${esc(r)}</span>
+              </div>`).join("")
+            :`<div style="font-size:9pt;color:#aaa">—</div>`}
+        </div>
+      </div>
+      <!-- FOOTER -->
+      ${foot(esc(insp.clientName)+" · "+esc(c.planName||""))}
+    </div>`;
+  }).join("");
+
+  /* ── SLIDE CONCLUSION ── */
+  const sConcl=C.length>0?`
+  <div style="width:297mm;height:210mm;display:flex;flex-direction:column;page-break-after:always;overflow:hidden;background:#fff;font-family:Arial,sans-serif">
+    <div style="background:${NAVY};padding:5mm 10mm;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
+      <span style="font-size:14pt;font-weight:700;color:#fff">Commentaires — Remarques</span>
+      <span style="font-size:13pt;font-weight:900;color:#fff">Rentokil</span>
+    </div>
+    <div style="flex:1;display:flex;overflow:hidden">
+      <div style="width:57%;padding:6mm 8mm;border-right:1px solid #eee;overflow:hidden;display:flex;flex-direction:column">
+        <div style="font-size:8pt;font-weight:700;color:${RED};text-transform:uppercase;letter-spacing:1px;margin-bottom:3mm">Analyse et conclusion</div>
+        <div style="font-size:9.5pt;line-height:1.7;color:#333;white-space:pre-wrap;overflow:hidden;flex:1">${esc(conclusion)}</div>
+      </div>
+      <div style="width:43%;padding:6mm 8mm;background:#f6f7f9;overflow:hidden">
+        <div style="font-size:8pt;font-weight:700;color:#333;text-transform:uppercase;letter-spacing:1px;margin-bottom:4mm">Plan d'actions prioritaires</div>
+        <table style="width:100%;border-collapse:collapse;font-size:8.5pt">
+          <tr><th style="background:${NAVY};color:#fff;padding:4px 6px;text-align:left">Zone</th>
+              <th style="background:${NAVY};color:#fff;padding:4px 6px;text-align:left">Problème</th>
+              <th style="background:${NAVY};color:#fff;padding:4px 6px;text-align:left">Priorité</th></tr>
+          ${C.map((c,i)=>`<tr style="background:${i%2?"#fff":"#f0f2f5"}">
+            <td style="padding:3px 6px;border-bottom:1px solid #e8e8e8;color:#555">${esc(c.planName)||"—"}</td>
+            <td style="padding:3px 6px;border-bottom:1px solid #e8e8e8;font-weight:500">${esc(c.type)}${c.subtype?" – "+esc(c.subtype):""}</td>
+            <td style="padding:3px 6px;border-bottom:1px solid #e8e8e8;color:${pCol[c.priority]||pCol[0]};font-weight:700">${pDot[c.priority]||"🔴"}</td>
+          </tr>`).join("")}
+        </table>
+        <div style="display:flex;gap:5mm;margin-top:5mm;border-top:1px solid #ddd;padding-top:4mm">
+          <div style="flex:1"><div style="font-size:7pt;color:#999;margin-bottom:1mm">Auditeur</div>
+            <div style="font-size:8.5pt;font-weight:600">${esc(insp.auditor)}</div>
+            <div style="border-top:1px solid #aaa;margin-top:8mm"></div></div>
+          <div style="flex:1"><div style="font-size:7pt;color:#999;margin-bottom:1mm">Client</div>
+            <div style="font-size:8.5pt;font-weight:600">${esc(insp.clientName)}</div>
+            <div style="border-top:1px solid #aaa;margin-top:8mm"></div></div>
+        </div>
+      </div>
+    </div>
+    ${foot(esc(insp.clientName)+" — Conclusion")}
+  </div>`:"";
+
+  /* ── BACK COVER : fond rouge, Rentokil blanc ── */
+  const sBck=`
+  <div style="width:297mm;height:210mm;display:flex;overflow:hidden;font-family:Arial,sans-serif">
+    <div style="width:55%;background:${RED};padding:12mm;display:flex;flex-direction:column;justify-content:space-between">
+      <div style="font-size:44pt;font-weight:900;color:#fff;line-height:1;white-space:nowrap">Rentokil</div>
+      <div>
+        <div style="font-size:22pt;font-weight:700;color:#fff;margin-bottom:4mm">Fin du rapport</div>
+        <div style="font-size:9pt;color:rgba(255,255,255,0.7);line-height:1.8">${esc(insp.clientName)}<br>${fmt(insp.date)}<br>${esc(insp.auditor)}</div>
+      </div>
+      <div style="font-size:7pt;color:rgba(255,255,255,0.3)">Document non officiel · Usage interne · ${fmt(new Date())}</div>
+    </div>
+    <div style="width:45%;background:#fff;border-left:4px solid ${RED};display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5mm">
+      <div style="font-size:36pt;font-weight:900;color:${RED};line-height:1;white-space:nowrap">Rentokil</div>
+      <div style="width:40mm;height:2px;background:${RED};border-radius:2px"></div>
+      <div style="font-size:9pt;color:#666;text-align:center">The Experts in Pest Control</div>
+    </div>
+  </div>`;
+
+  const html=`<!DOCTYPE html><html lang="fr"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rapport audit — ${esc(insp.clientName)}</title>
+<style>
+@page{size:297mm 210mm landscape;margin:0}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#111;font-family:Arial,sans-serif}
+@media screen{body{padding:6mm}}
+@media print{body{background:#fff;padding:0}button{display:none!important}}
+</style></head><body>
+<button onclick="window.print()" style="position:fixed;bottom:16px;right:16px;background:${RED};
+  color:#fff;border:none;padding:12px 22px;border-radius:8px;cursor:pointer;font-size:14px;
+  font-weight:700;box-shadow:0 2px 12px rgba(0,0,0,.4);z-index:999">🖨️ Imprimer / PDF</button>
+${s1}${s2}${sC}${sConcl}${sBck}
+</body></html>`;
+
+  const w=window.open("","_blank");
+  if(w){w.document.write(html);w.document.close();}
+  else alert("Autorisez les popups pour générer le rapport.");
+}
   const C=Array.isArray(constats)?constats:[];
   const byType=C.reduce((a,c)=>{a[c.type]=(a[c.type]||0)+1;return a},{});
   const byPlan=C.reduce((a,c)=>{const k=c.planName||"Zone non définie";if(!a[k])a[k]=[];a[k].push(c);return a},{});
