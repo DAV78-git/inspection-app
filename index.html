@@ -1,160 +1,226 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Inspection">
-<meta name="theme-color" content="#e8291c">
-<title>Audit Nuisibles — Rentokil</title>
-<style>
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;background:#f3f4f6;color:#111;-webkit-tap-highlight-color:transparent;overscroll-behavior:none}
-input,textarea,select,button{font-family:inherit;font-size:14px;outline:none}
-button{cursor:pointer}textarea{resize:vertical}img{display:block;max-width:100%}
-.page{display:none;min-height:100dvh;flex-direction:column}.page.active{display:flex}
-.scroll{overflow-y:auto;flex:1;-webkit-overflow-scrolling:touch}.pad{padding:16px}
-.bar{background:#fff;border-bottom:1px solid #e5e7eb;padding:12px 16px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:40;flex-shrink:0}
-.bar-title{flex:1;font-weight:600;font-size:16px}
-.back-btn{background:none;border:none;font-size:20px;color:#6b7280;padding:0 4px;min-width:32px;min-height:32px;display:flex;align-items:center;justify-content:center}
-.btn-r{background:#e8291c;color:#fff;border:none;border-radius:10px;padding:10px 16px;font-weight:600;font-size:14px}
-.btn-g{background:#fff;border:1px solid #d1d5db;border-radius:10px;padding:10px 16px;font-size:14px;color:#374151}
-.btn-green{background:#16a34a;color:#fff;border:none;border-radius:10px;padding:10px 16px;font-weight:600;font-size:14px}
-.inp{width:100%;border:1px solid #d1d5db;border-radius:8px;padding:10px 12px;font-size:14px;background:#fff;color:#111;margin-top:4px}
-.lbl{font-size:13px;font-weight:500;color:#374151;display:block;margin-bottom:2px;margin-top:12px}
-.card{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:14px 16px;margin-bottom:8px}
-.chip{padding:6px 12px;border-radius:20px;border:1px solid #d1d5db;background:#f9fafb;color:#374151;font-size:13px;cursor:pointer;display:inline-block;margin:3px}
-.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:100;align-items:flex-end}
-.overlay.open{display:flex}
-.modal{background:#fff;border-radius:18px 18px 0 0;width:100%;padding:20px;max-height:85dvh;overflow-y:auto}
-.marker{position:absolute;width:28px;height:28px;border-radius:50%;border:2.5px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:bold;cursor:pointer;transform:translate(-50%,-50%);z-index:10}
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
-.photo-slot{aspect-ratio:1;border:2px dashed #d1d5db;border-radius:10px;display:flex;align-items:center;justify-content:center;overflow:hidden;cursor:pointer;background:#f9fafb;font-size:24px;color:#9ca3af}
-.photo-slot img{width:100%;height:100%;object-fit:cover}
-.reco-row{padding:9px 12px;border-radius:8px;border:1px solid #e5e7eb;background:#f9fafb;font-size:13px;display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:6px;text-align:left;width:100%;color:#111}
-.reco-row.on{background:#f0fdf4;border-color:#16a34a}
-.prio-row{padding:9px 12px;border-radius:8px;border:1px solid #e5e7eb;background:#f9fafb;font-size:13px;cursor:pointer;margin-bottom:6px;text-align:left;width:100%;color:#111}
-.cover-bar{background:#e8291c;padding:24px 16px 32px}
-.cover-title{font-size:22px;font-weight:700;color:#fff}
-.cover-sub{font-size:12px;color:rgba(255,255,255,0.7);margin-bottom:4px}
-.insp-header{background:#e8291c;padding:12px 16px;flex-shrink:0}
-.plans-scroll{display:flex;gap:8px;overflow-x:auto;padding-bottom:2px;margin-top:10px}
-.plan-tab{flex-shrink:0;font-size:11px;padding:4px 10px;border-radius:20px;cursor:pointer;border:1px solid rgba(255,255,255,0.4);background:transparent;color:rgba(255,255,255,0.9);white-space:nowrap}
-.plan-tab.sel{background:#fff;color:#e8291c;border-color:#fff}
-.bot-bar{background:#fff;border-top:1px solid #e5e7eb;padding:10px 16px;display:flex;gap:10px;flex-shrink:0}
-.tag{display:inline-flex;align-items:center;gap:4px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:20px;padding:4px 10px;font-size:13px;margin:3px}
-#toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#111;color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;z-index:200;display:none;white-space:nowrap}
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Inspection">
+  <meta name="theme-color" content="#e8291c">
+  
+  <title>Audit Nuisibles — Rentokil</title>
+  
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+      background: #f3f4f6;
+      color: #111;
+      -webkit-tap-highlight-color: transparent;
+      overscroll-behavior: none;
+    }
+    
+    input, textarea, select, button {
+      font-family: inherit;
+      font-size: 14px;
+      outline: none;
+    }
+    
+    button { cursor: pointer; }
+    textarea { resize: vertical; }
+    img { display: block; max-width: 100%; }
+    
+    /* Structure des pages */
+    .page { display: none; min-height: 100dvh; flex-direction: column; }
+    .page.active { display: flex; }
+    .scroll { overflow-y: auto; flex: 1; -webkit-overflow-scrolling: touch; }
+    .pad { padding: 16px; }
+    
+    /* Composants UI */
+    .bar {
+      background: #fff;
+      border-bottom: 1px solid #e5e7eb;
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      flex-shrink: 0;
+    }
+    
+    .bar-title { flex: 1; font-weight: 600; font-size: 16px; }
+    
+    .back-btn {
+      background: none;
+      border: none;
+      font-size: 20px;
+      color: #6b7280;
+      padding: 0 4px;
+      min-width: 32px;
+      min-height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .btn-r { background: #e8291c; color: #fff; border: none; border-radius: 10px; padding: 10px 16px; font-weight: 600; font-size: 14px; }
+    .btn-g { background: #fff; border: 1px solid #d1d5db; border-radius: 10px; padding: 10px 16px; font-size: 14px; color: #374151; }
+    .btn-green { background: #16a34a; color: #fff; border: none; border-radius: 10px; padding: 10px 16px; font-weight: 600; font-size: 14px; }
+    
+    .inp { width: 100%; border: 1px solid #d1d5db; border-radius: 8px; padding: 10px 12px; font-size: 14px; background: #fff; color: #111; margin-top: 4px; }
+    .lbl { font-size: 13px; font-weight: 500; color: #374151; display: block; margin-bottom: 2px; margin-top: 12px; }
+    .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 14px 16px; margin-bottom: 8px; }
+    .chip { padding: 6px 12px; border-radius: 20px; border: 1px solid #d1d5db; background: #f9fafb; color: #374151; font-size: 13px; cursor: pointer; display: inline-block; margin: 3px; }
+    
+    /* Overlays & Modals */
+    .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 100; align-items: flex-end; }
+    .overlay.open { display: flex; }
+    .modal { background: #fff; border-radius: 18px 18px 0 0; width: 100%; padding: 20px; max-height: 85dvh; overflow-y: auto; }
+    
+    /* Cartographie */
+    .marker { position: absolute; width: 28px; height: 28px; border-radius: 50%; border: 2.5px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 11px; font-weight: bold; cursor: pointer; transform: translate(-50%,-50%); z-index: 10; }
+    
+    /* Grids */
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+    
+    /* Photos & Formulaires */
+    .photo-slot { aspect-ratio: 1; border: 2px dashed #d1d5db; border-radius: 10px; display: flex; align-items: center; justify-content: center; overflow: hidden; cursor: pointer; background: #f9fafb; font-size: 24px; color: #9ca3af; }
+    .photo-slot img { width: 100%; height: 100%; object-fit: cover; }
+    .reco-row { padding: 9px 12px; border-radius: 8px; border: 1px solid #e5e7eb; background: #f9fafb; font-size: 13px; display: flex; align-items: center; gap: 8px; cursor: pointer; margin-bottom: 6px; text-align: left; width: 100%; color: #111; }
+    .reco-row.on { background: #f0fdf4; border-color:#16a34a; }
+    .prio-row { padding: 9px 12px; border-radius: 8px; border: 1px solid #e5e7eb; background: #f9fafb; font-size: 13px; cursor: pointer; margin-bottom: 6px; text-align: left; width: 100%; color: #111; }
+    
+    /* En-têtes spécifiques */
+    .cover-bar { background: #e8291c; padding: 24px 16px 32px; }
+    .cover-title { font-size: 22px; font-weight: 700; color: #fff; }
+    .cover-sub { font-size: 12px; color: rgba(255,255,255,0.7); margin-bottom: 4px; }
+    .insp-header { background: #e8291c; padding: 12px 16px; flex-shrink: 0; }
+    .plans-scroll { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; margin-top: 10px; }
+    .plan-tab { flex-shrink: 0; font-size: 11px; padding: 4px 10px; border-radius: 20px; cursor: pointer; border: 1px solid rgba(255,255,255,0.4); background: transparent; color: rgba(255,255,255,0.9); white-space: nowrap; }
+    .plan-tab.sel { background: #fff; color: #e8291c; border-color: #fff; }
+    .bot-bar { background: #fff; border-top: 1px solid #e5e7eb; padding: 10px 16px; display: flex; gap: 10px; flex-shrink: 0; }
+    .tag { display: inline-flex; align-items: center; gap: 4px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 20px; padding: 4px 10px; font-size: 13px; margin: 3px; }
+    
+    #toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: #111; color: #fff; padding: 10px 18px; border-radius: 8px; font-size: 13px; z-index: 200; display: none; white-space: nowrap; }
+  </style>
 </head>
 <body>
-<div id="toast"></div>
 
-<!-- HOME -->
-<div id="p-home" class="page">
+<div id="toast" role="alert" aria-live="assertive"></div>
+
+<main id="p-home" class="page">
   <div class="cover-bar">
     <div class="cover-sub">Rentokil · Audit terrain</div>
-    <div class="cover-title">Inspections</div>
+    <h1 class="cover-title">Inspections</h1>
   </div>
   <div class="scroll pad" style="margin-top:-16px">
     <div id="home-active"></div>
     <div class="grid2" style="margin-bottom:10px">
-      <button class="btn-r" style="border-radius:12px;padding:14px 8px;width:100%" onclick="nav('p-insp-new')">+ Inspection</button>
-      <button class="btn-g" style="border-radius:12px;padding:14px 8px;width:100%" onclick="nav('p-clients')">👥 Clients</button>
+      <button type="button" class="btn-r" style="border-radius:12px;padding:14px 8px;width:100%" onclick="nav('p-insp-new')">+ Inspection</button>
+      <button type="button" class="btn-g" style="border-radius:12px;padding:14px 8px;width:100%" onclick="nav('p-clients')">👥 Clients</button>
     </div>
     <div class="grid2" style="margin-bottom:20px">
-      <button class="btn-g" style="width:100%;padding:9px 8px;font-size:13px" onclick="doExport()">💾 Exporter</button>
-      <button class="btn-g" style="width:100%;padding:9px 8px;font-size:13px" onclick="document.getElementById('imp-file').click()">📂 Importer</button>
+      <button type="button" class="btn-g" style="width:100%;padding:9px 8px;font-size:13px" onclick="doExport()">💾 Exporter</button>
+      <button type="button" class="btn-g" style="width:100%;padding:9px 8px;font-size:13px" onclick="document.getElementById('imp-file').click()">📂 Importer</button>
     </div>
     <input id="imp-file" type="file" accept=".json" style="display:none" onchange="doImport(this)">
     <div id="home-history"></div>
   </div>
-</div>
+</main>
 
-<!-- CLIENTS -->
-<div id="p-clients" class="page">
+<section id="p-clients" class="page">
   <div class="bar">
-    <button class="back-btn" onclick="nav('p-home')">←</button>
+    <button type="button" class="back-btn" onclick="nav('p-home')" aria-label="Retour">←</button>
     <span class="bar-title">Clients</span>
-    <button class="btn-r" style="padding:6px 12px;font-size:13px" onclick="openClientForm(null)">+ Ajouter</button>
+    <button type="button" class="btn-r" style="padding:6px 12px;font-size:13px" onclick="openClientForm(null)">+ Ajouter</button>
   </div>
   <div class="scroll pad" id="clients-list"></div>
-</div>
+</section>
 
-<!-- CLIENT FORM -->
-<div id="p-client-form" class="page">
+<section id="p-client-form" class="page">
   <div class="bar">
-    <button class="back-btn" onclick="nav('p-clients')">←</button>
+    <button type="button" class="back-btn" onclick="nav('p-clients')" aria-label="Retour">←</button>
     <span class="bar-title" id="cform-title">Nouveau client</span>
-    <button class="btn-r" style="padding:6px 12px;font-size:13px" onclick="saveClient()">Sauvegarder</button>
+    <button type="button" class="btn-r" style="padding:6px 12px;font-size:13px" onclick="saveClient()">Sauvegarder</button>
   </div>
   <div class="scroll pad">
     <input type="hidden" id="cform-id">
-    <label class="lbl">Nom *</label><input class="inp" id="cform-name" placeholder="Ex: Panzani Marseille">
-    <label class="lbl">Adresse</label><input class="inp" id="cform-address" placeholder="131 Av. Corot, 13013 Marseille">
-    <label class="lbl">Contact</label><input class="inp" id="cform-contact" placeholder="Nom du responsable">
+    <label class="lbl" for="cform-name">Nom *</label>
+    <input class="inp" id="cform-name" placeholder="Ex: Panzani Marseille">
+    
+    <label class="lbl" for="cform-address">Adresse</label>
+    <input class="inp" id="cform-address" placeholder="131 Av. Corot, 13013 Marseille">
+    
+    <label class="lbl" for="cform-contact">Contact</label>
+    <input class="inp" id="cform-contact" placeholder="Nom du responsable">
   </div>
-</div>
+</section>
 
-<!-- CLIENT DETAIL -->
-<div id="p-client-detail" class="page">
+<section id="p-client-detail" class="page">
   <div class="bar">
-    <button class="back-btn" onclick="nav('p-clients')">←</button>
+    <button type="button" class="back-btn" onclick="nav('p-clients')" aria-label="Retour">←</button>
     <span class="bar-title" id="cdetail-title"></span>
-    <button class="btn-r" style="padding:6px 12px;font-size:13px" onclick="openPlanForm()">+ Plan</button>
+    <button type="button" class="btn-r" style="padding:6px 12px;font-size:13px" onclick="openPlanForm()">+ Plan</button>
   </div>
   <div class="scroll pad">
     <div id="cdetail-info"></div>
     <div style="font-weight:600;margin-bottom:10px">Plans</div>
     <div id="cdetail-plans"></div>
   </div>
-</div>
+</section>
 
-<!-- PLAN FORM -->
-<div id="p-plan-form" class="page">
+<section id="p-plan-form" class="page">
   <div class="bar">
-    <button class="back-btn" id="plan-back-btn" onclick="nav('p-client-detail')">←</button>
+    <button type="button" class="back-btn" id="plan-back-btn" onclick="nav('p-client-detail')" aria-label="Retour">←</button>
     <span class="bar-title">Ajouter un plan</span>
-    <button class="btn-r" style="padding:6px 12px;font-size:13px" onclick="savePlan()">Sauvegarder</button>
+    <button type="button" class="btn-r" style="padding:6px 12px;font-size:13px" onclick="savePlan()">Sauvegarder</button>
   </div>
   <div class="scroll pad">
-    <label class="lbl">Nom du plan *</label><input class="inp" id="pform-name" placeholder="Extérieur, RDC, Bât. trituration 3ème...">
-    <label class="lbl">Bâtiment</label><input class="inp" id="pform-building" placeholder="Bâtiment trituration">
-    <label class="lbl">Niveau / Étage</label><input class="inp" id="pform-floor" placeholder="RDC, 3ème étage...">
+    <label class="lbl" for="pform-name">Nom du plan *</label>
+    <input class="inp" id="pform-name" placeholder="Extérieur, RDC, Bât. trituration 3ème...">
+    
+    <label class="lbl" for="pform-building">Bâtiment</label>
+    <input class="inp" id="pform-building" placeholder="Bâtiment trituration">
+    
+    <label class="lbl" for="pform-floor">Niveau / Étage</label>
+    <input class="inp" id="pform-floor" placeholder="RDC, 3ème étage...">
+    
     <label class="lbl">Image du plan *</label>
     <input type="file" id="pform-file" accept="image/*" style="display:none" onchange="onPlanFile(this)">
-    <div id="pform-preview" onclick="document.getElementById('pform-file').click()"
-      style="border:2px dashed #d1d5db;border-radius:12px;padding:16px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:130px;background:#f9fafb;margin-top:4px;font-size:13px;color:#9ca3af">
+    <div id="pform-preview" onclick="document.getElementById('pform-file').click()" style="border:2px dashed #d1d5db;border-radius:12px;padding:16px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:130px;background:#f9fafb;margin-top:4px;font-size:13px;color:#9ca3af;">
       <div style="font-size:32px">📷</div>
       <div style="margin-top:6px">Photographier ou choisir un plan</div>
     </div>
     <input type="hidden" id="pform-image">
   </div>
-</div>
+</section>
 
-<!-- NOUVELLE INSPECTION -->
-<div id="p-insp-new" class="page">
+<section id="p-insp-new" class="page">
   <div class="bar">
-    <button class="back-btn" onclick="nav('p-home')">←</button>
+    <button type="button" class="back-btn" onclick="nav('p-home')" aria-label="Retour">←</button>
     <span class="bar-title">Nouvelle inspection</span>
   </div>
   <div class="scroll pad">
-    <label class="lbl">Client *</label>
+    <label class="lbl" for="new-client-sel">Client *</label>
     <select class="inp" id="new-client-sel" style="margin-bottom:4px"></select>
     <div id="new-no-client" style="display:none;font-size:12px;color:#e8291c;margin-top:4px">
       Aucun client. <span style="text-decoration:underline;cursor:pointer" onclick="openClientForm(null);nav('p-client-form')">Créer un client</span>
     </div>
-    <label class="lbl">Auditeur *</label>
+    
+    <label class="lbl" for="new-auditor">Auditeur *</label>
     <input class="inp" id="new-auditor" placeholder="davy.slila@rentokil-initial.com" style="margin-bottom:20px">
-    <button class="btn-r" style="width:100%;padding:14px;font-size:15px" onclick="startInspection()">Démarrer →</button>
+    
+    <button type="button" class="btn-r" style="width:100%;padding:14px;font-size:15px" onclick="startInspection()">Démarrer →</button>
   </div>
-</div>
+</section>
 
-<!-- INSPECTION ACTIVE -->
-<div id="p-insp-active" class="page">
+<section id="p-insp-active" class="page">
   <div class="insp-header">
     <div style="display:flex;align-items:center;justify-content:space-between">
       <div>
@@ -178,50 +244,45 @@ button{cursor:pointer}textarea{resize:vertical}img{display:block;max-width:100%}
     </div>
   </div>
   <div class="bot-bar">
-    <button class="btn-g" onclick="leaveInspection()">← Accueil</button>
-    <button class="btn-g" style="color:#e8291c;border-color:#e8291c;font-size:13px" onclick="deleteActiveInsp()">🗑 Supprimer</button>
+    <button type="button" class="btn-g" onclick="leaveInspection()">← Accueil</button>
+    <button type="button" class="btn-g" style="color:#e8291c;border-color:#e8291c;font-size:13px" onclick="deleteActiveInsp()">🗑 Supprimer</button>
     <div style="flex:1"></div>
-    <button class="btn-green" id="btn-conclude" style="display:none" onclick="nav('p-conclusion')">Conclure ✓</button>
+    <button type="button" class="btn-green" id="btn-conclude" style="display:none" onclick="nav('p-conclusion')">Conclure ✓</button>
   </div>
-</div>
+</section>
 
-<!-- CONSTAT FORM -->
-<div id="p-constat-form" class="page">
+<section id="p-constat-form" class="page">
   <div class="bar">
-    <button class="back-btn" id="cstat-back">←</button>
+    <button type="button" class="back-btn" id="cstat-back" aria-label="Retour">←</button>
     <span class="bar-title" id="cstat-title">Nouveau constat</span>
-    <button class="btn-r" style="padding:6px 14px;font-size:13px" onclick="saveConstat()">Valider ✓</button>
+    <button type="button" class="btn-r" style="padding:6px 14px;font-size:13px" onclick="saveConstat()">Valider ✓</button>
   </div>
   <div class="scroll pad" id="cstat-body"></div>
-</div>
+</section>
 
-<!-- CONCLUSION -->
-<div id="p-conclusion" class="page">
+<section id="p-conclusion" class="page">
   <div class="bar">
-    <button class="back-btn" onclick="nav('p-insp-active')">←</button>
+    <button type="button" class="back-btn" onclick="nav('p-insp-active')" aria-label="Retour">←</button>
     <span class="bar-title">Conclusion</span>
   </div>
   <div class="scroll pad">
     <div class="card" id="concl-summary"></div>
-    <label class="lbl" style="margin-top:16px">Conclusion générale *</label>
-    <textarea class="inp" id="concl-text" rows="9" style="line-height:1.6;margin-bottom:14px"
-      placeholder="Synthèse de l'inspection, analyse du risque, plan d'actions prioritaires..."></textarea>
-    <button class="btn-g" style="width:100%;margin-bottom:10px" onclick="previewReport()">👁 Prévisualiser</button>
-    <button class="btn-green" style="width:100%;padding:14px;font-size:15px" onclick="finishInspection()">Générer le rapport PDF et terminer →</button>
+    <label class="lbl" for="concl-text">Conclusion générale *</label>
+    <textarea class="inp" id="concl-text" rows="9" style="line-height:1.6;margin-bottom:14px" placeholder="Synthèse de l'inspection, analyse du risque, plan d'actions prioritaires..."></textarea>
+    <button type="button" class="btn-g" style="width:100%;margin-bottom:10px" onclick="previewReport()">👁 Prévisualiser</button>
+    <button type="button" class="btn-green" style="width:100%;padding:14px;font-size:15px" onclick="finishInspection()">Générer le rapport PDF et terminer →</button>
   </div>
-</div>
+</section>
 
-<!-- MODAL TYPE -->
-<div class="overlay" id="modal-type">
+<div class="overlay" id="modal-type" role="dialog" aria-modal="true">
   <div class="modal">
     <div style="text-align:center;font-weight:600;margin-bottom:16px;font-size:15px">Type de constat</div>
     <div class="grid4" id="type-grid"></div>
-    <button style="width:100%;margin-top:14px;padding:10px;background:none;border:none;color:#6b7280;font-size:14px" onclick="closeModal('modal-type')">Annuler</button>
+    <button type="button" style="width:100%;margin-top:14px;padding:10px;background:none;border:none;color:#6b7280;font-size:14px" onclick="closeModal('modal-type')">Annuler</button>
   </div>
 </div>
 
-<!-- MODAL CONSTAT DETAIL -->
-<div class="overlay" id="modal-cdetail">
+<div class="overlay" id="modal-cdetail" role="dialog" aria-modal="true">
   <div class="modal" id="modal-cdetail-body"></div>
 </div>
 
@@ -259,6 +320,7 @@ let S={
   currentClientId:null,selPlanId:null,pendPt:null,
   editConstatId:null,cstatType:null,fromInsp:false
 };
+
 function persist(keys){
   (keys||["clients","plans","inspections","activeInsp","constats"]).forEach(k=>{
     localStorage.setItem(k,JSON.stringify(S[k]));
@@ -268,7 +330,13 @@ function persist(keys){
 const uid=()=>Math.random().toString(36).substr(2,9);
 const esc=s=>(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
 const fmt=d=>new Date(d).toLocaleDateString("fr-FR");
-function toast(msg){const t=document.getElementById("toast");t.textContent=msg;t.style.display="block";setTimeout(()=>t.style.display="none",2200);}
+
+function toast(msg){
+  const t=document.getElementById("toast");
+  t.textContent=msg;
+  t.style.display="block";
+  setTimeout(()=>t.style.display="none",2200);
+}
 function closeModal(id){document.getElementById(id).classList.remove("open");}
 
 const compress=(file,maxW)=>new Promise(res=>{
@@ -292,14 +360,14 @@ function nav(pageId){
   document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
   const p=document.getElementById(pageId);
   if(p){p.classList.add("active");window.scrollTo(0,0);}
-  if(pageId==="p-home")        renderHome();
-  if(pageId==="p-clients")     renderClients();
+  if(pageId==="p-home")       renderHome();
+  if(pageId==="p-clients")      renderClients();
   if(pageId==="p-insp-new")    renderInspNew();
   if(pageId==="p-insp-active") renderInspActive();
   if(pageId==="p-conclusion")  renderConclusion();
 }
 
-/* HOME */
+/* ACCUEIL */
 function renderHome(){
   const ha=document.getElementById("home-active");
   if(S.activeInsp){
@@ -316,7 +384,7 @@ function renderHome(){
     hh.innerHTML=`<div style="text-align:center;color:#9ca3af;padding:32px">
       <div style="font-size:40px;margin-bottom:8px">🏭</div>
       <div style="font-size:14px">Commencez par créer un client</div>
-      <button class="btn-r" style="margin-top:14px" onclick="openClientForm(null);nav('p-client-form')">+ Créer un client</button>
+      <button type="button" class="btn-r" style="margin-top:14px" onclick="openClientForm(null);nav('p-client-form')">+ Créer un client</button>
     </div>`;return;
   }
   if(done.length===0){hh.innerHTML="";return;}
@@ -327,8 +395,8 @@ function renderHome(){
         <div style="font-size:12px;color:#6b7280">${fmt(i.date)} · ${esc(i.auditor)} · ${i.constatsCount||0} constats</div>
       </div>
       <div style="display:flex;gap:6px;flex-shrink:0">
-        <button class="btn-g" style="padding:6px 10px;font-size:12px" onclick="generateReport(S.inspections.find(x=>x.id==='${i.id}'),S.inspections.find(x=>x.id==='${i.id}').constats||[],S.inspections.find(x=>x.id==='${i.id}').conclusion||'')">PDF</button>
-        <button class="btn-r" style="padding:6px 10px;font-size:12px" onclick="reopenInspection('${i.id}')">Modifier</button>
+        <button type="button" class="btn-g" style="padding:6px 10px;font-size:12px" onclick="window.generateReportTarget('${i.id}')">PDF</button>
+        <button type="button" class="btn-r" style="padding:6px 10px;font-size:12px" onclick="reopenInspection('${i.id}')">Modifier</button>
       </div>
     </div>`).join("");
 }
@@ -402,7 +470,7 @@ function openClientDetail(clientId){
   document.getElementById("cdetail-plans").innerHTML=ps.length===0?
     `<div style="text-align:center;color:#9ca3af;padding:24px">Aucun plan enregistré</div>`:
     ps.map(p=>`<div class="card" style="display:flex;gap:12px;align-items:center">
-      <img src="${p.image}" style="width:64px;height:48px;object-fit:cover;border-radius:6px;border:1px solid #e5e7eb;flex-shrink:0">
+      <img src="${p.image}" alt="Plan" style="width:64px;height:48px;object-fit:cover;border-radius:6px;border:1px solid #e5e7eb;flex-shrink:0">
       <div><div style="font-weight:600;font-size:14px">${esc(p.name)}</div>
       <div style="font-size:12px;color:#6b7280">${esc(p.building||"")}${p.floor?" · "+esc(p.floor):""}</div></div>
     </div>`).join("");
@@ -421,7 +489,7 @@ async function onPlanFile(input){
   const file=input.files[0];if(!file)return;
   const img=await compress(file,1500);
   document.getElementById("pform-image").value=img;
-  document.getElementById("pform-preview").innerHTML=`<img src="${img}" style="max-height:160px;object-fit:contain">`;
+  document.getElementById("pform-preview").innerHTML=`<img src="${img}" alt="Aperçu plan" style="max-height:160px;object-fit:contain">`;
 }
 function savePlan(){
   const name=document.getElementById("pform-name").value.trim();
@@ -466,8 +534,8 @@ function updateConstatCount(){
 function renderPlanTabs(){
   const plans=S.plans[S.activeInsp.clientId]||[];
   document.getElementById("ia-plans").innerHTML=
-    plans.map(p=>`<button class="plan-tab ${S.selPlanId===p.id?"sel":""}" onclick="selectPlan('${p.id}')">${esc(p.name)}</button>`).join("")+
-    `<button class="plan-tab" onclick="openPlanFromInsp()">+ plan</button>`;
+    plans.map(p=>`<button type="button" class="plan-tab ${S.selPlanId===p.id?"sel":""}" onclick="selectPlan('${p.id}')">${esc(p.name)}</button>`).join("")+
+    `<button type="button" class="plan-tab" onclick="openPlanFromInsp()">+ plan</button>`;
 }
 function openPlanFromInsp(){
   S.currentClientId=S.activeInsp.clientId;S.fromInsp=true;openPlanForm();
@@ -505,7 +573,7 @@ function renderMarkers(){
 }
 function openTypeModal(){
   document.getElementById("type-grid").innerHTML=Object.entries(TYPES).map(([t,v])=>
-    `<button style="background:#f9fafb;border:2px solid ${v.c};border-radius:12px;padding:10px 4px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px" onclick="selectType('${t}')">
+    `<button type="button" style="background:#f9fafb;border:2px solid ${v.c};border-radius:12px;padding:10px 4px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px" onclick="selectType('${t}')">
       <span style="font-size:22px">${v.e}</span>
       <span style="font-size:10px;color:${v.c};font-weight:600;text-align:center">${t}</span>
     </button>`).join("");
@@ -524,14 +592,14 @@ function openConstatDetail(constatId){
       ${c.subtype?`<span style="color:${t.c};font-size:13px">▸ ${esc(c.subtype)}</span>`:""}
       <span style="margin-left:auto;font-size:15px">${PRIOS[c.priority]?.e||"🔴"}</span>
     </div>
-    ${c.photos?.some(Boolean)?`<div style="display:flex;gap:6px;margin-bottom:10px">${c.photos.map((ph,i)=>ph?`<img src="${ph}" style="width:80px;height:60px;object-fit:cover;border-radius:6px">`:``).join("")}</div>`:""}
+    ${c.photos?.some(Boolean)?`<div style="display:flex;gap:6px;margin-bottom:10px">${c.photos.map((ph,i)=>ph?`<img src="${ph}" alt="Aperçu constat" style="width:80px;height:60px;object-fit:cover;border-radius:6px">`:``).join("")}</div>`:""}
     ${c.observations?`<div style="font-size:13px;color:#374151;margin-bottom:8px;line-height:1.5">${esc(c.observations)}</div>`:""}
     ${c.recommendations?.length?`<div style="font-size:12px;color:#6b7280;line-height:1.6">${c.recommendations.map(esc).join(" · ")}</div>`:""}
     <div style="display:flex;gap:8px;margin-top:14px">
-      <button class="btn-r" style="flex:1" onclick="editConstat('${c.id}')">Modifier</button>
-      <button class="btn-g" style="flex:1;color:#dc2626;border-color:#dc2626" onclick="deleteConstat('${c.id}')">Supprimer</button>
+      <button type="button" class="btn-r" style="flex:1" onclick="editConstat('${c.id}')">Modifier</button>
+      <button type="button" class="btn-g" style="flex:1;color:#dc2626;border-color:#dc2626" onclick="deleteConstat('${c.id}')">Supprimer</button>
     </div>
-    <button style="width:100%;margin-top:8px;padding:10px;background:none;border:none;color:#6b7280;font-size:13px;cursor:pointer" onclick="closeModal('modal-cdetail')">Fermer</button>`;
+    <button type="button" style="width:100%;margin-top:8px;padding:10px;background:none;border:none;color:#6b7280;font-size:13px;cursor:pointer" onclick="closeModal('modal-cdetail')">Fermer</button>`;
   document.getElementById("modal-cdetail").classList.add("open");
 }
 function editConstat(id){
@@ -552,7 +620,7 @@ function deleteActiveInsp(){
   persist();toast("Inspection supprimée");nav("p-home");
 }
 
-/* CONSTAT FORM */
+/* FORMULAIRE CONSTAT */
 let _photos=[],_recos=[],_subtype="",_species="",_priority=0;
 function buildConstatForm(type,existing){
   _photos=[...(existing?.photos||[])];_recos=[...(existing?.recommendations||[])];
@@ -561,6 +629,7 @@ function buildConstatForm(type,existing){
   document.getElementById("cstat-title").textContent=existing?"Modifier constat":"Nouveau constat";
   document.getElementById("cstat-back").onclick=()=>nav("p-insp-active");
   const plan=S.selPlanId?(S.plans[S.activeInsp?.clientId]||[]).find(p=>p.id===S.selPlanId):null;
+  
   document.getElementById("cstat-body").innerHTML=`
     ${plan?`<div style="background:#f9fafb;border-radius:8px;padding:8px 12px;font-size:12px;color:#6b7280;margin-bottom:14px">📍 ${esc([plan.building,plan.name].filter(Boolean).join(" · "))}</div>`:""}
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
@@ -569,40 +638,40 @@ function buildConstatForm(type,existing){
     </div>
     ${ti.subs.length?`<div style="margin-bottom:14px"><label class="lbl">Sous-type</label>
       <div id="cf-subs" style="margin-top:6px">${ti.subs.map(s=>`
-        <button class="chip ${_subtype===s?"active":""}" style="${_subtype===s?`background:${ti.c};color:#fff;border-color:${ti.c}`:""}"
+        <button type="button" class="chip ${_subtype===s?"active":""}" style="${_subtype===s?`background:${ti.c};color:#fff;border-color:${ti.c}`:""}"
           onclick="setCstatSubtype('${s}','${type}')">${esc(s)}</button>`).join("")}</div></div>`:""}
     <div id="cf-species-wrap" style="margin-bottom:14px;${(!_subtype||!ti.sp[_subtype]?.length)?"display:none":""}">
       <label class="lbl">Espèce</label><div id="cf-species" style="margin-top:6px"></div>
     </div>
     <div style="margin-bottom:14px"><label class="lbl">Priorité</label>
       <div id="cf-prios" style="margin-top:6px">${PRIOS.map((p,i)=>`
-        <button class="prio-row" style="${_priority===i?`background:${p.c}18;border:2px solid ${p.c}`:""}" onclick="setCstatPriority(${i})">${p.e} ${p.l}</button>`).join("")}
+        <button type="button" class="prio-row" style="${_priority===i?`background:${p.c}18;border:2px solid ${p.c}`:""}" onclick="setCstatPriority(${i})">${p.e} ${p.l}</button>`).join("")}
       </div>
     </div>
     <div style="margin-bottom:14px"><label class="lbl">Photos (max 3)</label>
       <div class="grid3" style="margin-top:6px">
         ${[0,1,2].map(i=>`
           <div class="photo-slot" id="ph-slot-${i}" onclick="triggerPhoto(${i})">
-            ${_photos[i]?`<img src="${_photos[i]}" style="width:100%;height:100%;object-fit:cover">`:`📷`}
+            ${_photos[i]?`<img src="${_photos[i]}" alt="Photo ${i+1}">`:`📷`}
           </div>
           <input type="file" accept="image/*" capture="environment" id="ph-inp-${i}" style="display:none" onchange="onConstatPhoto(${i},this)">`).join("")}
       </div>
     </div>
-    <div style="margin-bottom:14px"><label class="lbl">Observations</label>
+    <div style="margin-bottom:14px"><label class="lbl" for="cf-obs">Observations</label>
       <textarea class="inp" id="cf-obs" rows="3" placeholder="Décrivez ce que vous observez..." style="line-height:1.5">${esc(existing?.observations||"")}</textarea>
     </div>
-    <div style="margin-bottom:14px"><label class="lbl">Actions recommandées</label>
+    <div style="margin-bottom:14px"><label class="lbl" for="cf-custom-reco">Actions recommandées</label>
       <div id="cf-recos" style="margin-top:6px">${buildRecosHTML(ti.r)}</div>
       <div style="display:flex;gap:8px;margin-top:8px">
-        <input class="inp" id="cf-custom-reco" placeholder="+ Autre recommandation" style="flex:1;margin-top:0">
-        <button class="btn-r" style="padding:0 14px;flex-shrink:0" onclick="addCustomReco()">+</button>
+        <input class="inp" id="cf-custom-reco" placeholder="+ Autre recommandation" style="margin-top:0">
+        <button type="button" class="btn-r" style="padding:0 14px;flex-shrink:0" onclick="addCustomReco()">+</button>
       </div>
     </div>`;
   if(_subtype)renderSpeciesChips(type);
 }
 function buildRecosHTML(list){
   const all=[...list,..._recos.filter(r=>!list.includes(r))];
-  return all.map(r=>`<button class="reco-row ${_recos.includes(r)?"on":""}" onclick="toggleReco('${r.replace(/'/g,"\\'")}')">
+  return all.map(r=>`<button type="button" class="reco-row ${_recos.includes(r)?"on":""}" onclick="toggleReco('${r.replace(/'/g,"\\'")}')">
     <span style="color:${_recos.includes(r)?"#16a34a":"#d1d5db"};font-size:16px;font-weight:bold;flex-shrink:0">${_recos.includes(r)?"✓":"○"}</span>${esc(r)}
   </button>`).join("");
 }
@@ -621,7 +690,7 @@ function renderSpeciesChips(type){
   if(!sp.length){wrap.style.display="none";return;}
   wrap.style.display="block";
   document.getElementById("cf-species").innerHTML=sp.map(s=>`
-    <button class="chip ${_species===s?"active":""}" style="${_species===s?`background:${ti.c};color:#fff;border-color:${ti.c}`:""}"
+    <button type="button" class="chip ${_species===s?"active":""}" style="${_species===s?`background:${ti.c};color:#fff;border-color:${ti.c}`:""}"
       onclick="setCstatSpecies('${s}','${type}')">${esc(s)}</button>`).join("");
 }
 function setCstatSpecies(s,type){
@@ -652,7 +721,7 @@ async function onConstatPhoto(i,input){
   const file=input.files[0];if(!file)return;
   const img=await compress(file,1800);_photos[i]=img;
   const slot=document.getElementById(`ph-slot-${i}`);
-  slot.innerHTML=`<img src="${img}" style="width:100%;height:100%;object-fit:cover">`;
+  slot.innerHTML=`<img src="${img}" alt="Constat vignette ${i+1}" style="width:100%;height:100%;object-fit:cover">`;
 }
 
 function capturePlanSnapshot(plan,x,y,type){
@@ -686,7 +755,7 @@ async function saveConstat(){
   const existing=S.editConstatId?S.constats.find(c=>c.id===S.editConstatId):null;
   const px=S.pendPt?.x??existing?.x,py=S.pendPt?.y??existing?.y;
   let locationSnap=existing?.locationSnap||null;
-  if(plan&&px!=null&&py!=null)locationSnap=await capturePlanSnapshot(plan,px,py,S.cstatType);
+  if(plan&&px!=null&&py!=null) locationSnap=await capturePlanSnapshot(plan,px,py,S.cstatType);
   const nc={id:S.editConstatId||uid(),planId:plan?.id,planName:plan?.name||"Zone non définie",
     x:px,y:py,type:S.cstatType,subtype:_subtype,species:_species,priority:_priority,
     observations:document.getElementById("cf-obs").value.trim(),
@@ -715,12 +784,12 @@ function finishInspection(){
   S.activeInsp=null;S.constats=[];persist();toast("Inspection terminée ✓");nav("p-home");
 }
 
-/* ═══ RAPPORT PDF ═══════════════════════════════════════ */
+/* GENERATION RAPPORT PDF */
 function generateReport(insp,constats,conclusion){
   const C=Array.isArray(constats)?constats:[];
   const byType=C.reduce((a,c)=>{a[c.type]=(a[c.type]||0)+1;return a},{});
   const RED="#e8291c", NAVY="#1a2535";
-  const pCol=["#e8291c","#ea580c","#ca8a04","#16a34a"];
+  const pCol=["#dc2626","#ea580c","#ca8a04","#16a34a"];
   const pDot=["🔴","🟠","🟡","🟢"];
   const N=2+C.length+(C.length>0?1:0)+1;
   let sn=1;
@@ -735,7 +804,6 @@ function generateReport(insp,constats,conclusion){
       </div>
     </div>`;
 
-  /* SLIDE 1 — COUVERTURE */
   const s1=`
   <div style="width:297mm;height:210mm;display:flex;page-break-after:always;overflow:hidden;font-family:Arial,sans-serif">
     <div style="width:55%;background:${RED};padding:12mm;display:flex;flex-direction:column;justify-content:space-between">
@@ -780,7 +848,6 @@ function generateReport(insp,constats,conclusion){
     </div>
   </div>`;sn++;
 
-  /* SLIDE 2 — SYNTHÈSE */
   const s2=`
   <div style="width:297mm;height:210mm;display:flex;flex-direction:column;page-break-after:always;overflow:hidden;background:#fff;font-family:Arial,sans-serif">
     <div style="background:${NAVY};padding:5mm 10mm;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
@@ -810,13 +877,12 @@ function generateReport(insp,constats,conclusion){
     ${foot(esc(insp.clientName)+" — Synthèse")}
   </div>`;
 
-  /* SLIDES CONSTATS — 1 PAR SLIDE */
   const sC=C.map((c,idx)=>{
     const t=TYPES[c.type]||{e:"?",c:"#666"};
     const pr=PRIOS[c.priority]||PRIOS[0];
     const ph=(img,lbl)=>img
       ?`<div style="flex:1;position:relative;overflow:hidden;background:#111">
-          <img src="${img}" style="width:100%;height:100%;object-fit:cover;display:block">
+          <img src="${img}" alt="${lbl}" style="width:100%;height:100%;object-fit:cover;display:block">
           <div style="position:absolute;bottom:0;left:0;right:0;padding:5px 8px;background:linear-gradient(transparent,rgba(0,0,0,0.65))">
             <span style="font-size:8pt;color:#fff;font-weight:600;font-family:Arial">${lbl}</span>
           </div>
@@ -863,7 +929,6 @@ function generateReport(insp,constats,conclusion){
     </div>`;
   }).join("");
 
-  /* SLIDE CONCLUSION */
   const sConcl=C.length>0?`
   <div style="width:297mm;height:210mm;display:flex;flex-direction:column;page-break-after:always;overflow:hidden;background:#fff;font-family:Arial,sans-serif">
     <div style="background:${NAVY};padding:5mm 10mm;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
@@ -900,7 +965,6 @@ function generateReport(insp,constats,conclusion){
     ${foot(esc(insp.clientName)+" — Conclusion")}
   </div>`:"";
 
-  /* BACK COVER */
   const sBck=`
   <div style="width:297mm;height:210mm;display:flex;overflow:hidden;font-family:Arial,sans-serif">
     <div style="width:55%;background:${RED};padding:12mm;display:flex;flex-direction:column;justify-content:space-between">
@@ -937,7 +1001,13 @@ ${s1}${s2}${sC}${sConcl}${sBck}
   else alert("Autorisez les popups pour générer le rapport.");
 }
 
-/* PWA */
+// Handler global sécurisé pour le bouton de l'historique d'accueil (évite les conflits d'échappement de chaînes)
+window.generateReportTarget = function(id) {
+  const i = S.inspections.find(x => x.id === id);
+  if (i) generateReport(i, i.constats || [], i.conclusion || "");
+};
+
+/* CONFIGURATION INTERNE GENERIQUE DU MANIFEST PWA */
 const manifest={name:"Audit Nuisibles Rentokil",short_name:"Inspection",start_url:"./",
   display:"standalone",background_color:"#ffffff",theme_color:"#e8291c",
   icons:[{src:"data:image/svg+xml,"+encodeURIComponent(
@@ -947,7 +1017,10 @@ const mb=new Blob([JSON.stringify(manifest)],{type:"application/manifest+json"})
 const ml=document.createElement("link");ml.rel="manifest";ml.href=URL.createObjectURL(mb);
 document.head.appendChild(ml);
 
-nav("p-home");
+// Point d'entrée initial
+document.addEventListener("DOMContentLoaded", () => {
+  nav("p-home");
+});
 </script>
 </body>
 </html>
