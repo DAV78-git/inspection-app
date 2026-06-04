@@ -727,7 +727,7 @@ function generateReport(insp,constats,conclusion){
   const pCol=["#dc2626","#ea580c","#ca8a04","#16a34a"];
   const pDot=["🔴","🟠","🟡","🟢"];
   const pLbl=["A faire le plus rapidement possible","A faire rapidement","A planifier","Pour information"];
-  const nSlides=2+Math.ceil(C.length/2)+(C.length>0?1:0)+1;
+  const nSlides=2+C.length+(C.length>0?1:0)+1;
   let sn=1;
 
   const footer=(info="")=>`<div style="background:#f5f5f5;border-top:2px solid #c00;padding:2.5mm 12mm;display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
