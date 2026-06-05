@@ -988,59 +988,55 @@ function capturePlanSnapshot(plan, x, y, type) {
   return new Promise(res => {
     const img = new Image();
     img.onload = () => {
-      // Stratégie : image ENTIÈRE redimensionnée dans le canvas de sortie.
-      // Le marqueur est calculé en % → toujours au bon endroit, même aux bords.
-      const OUT_W = 700, OUT_H = 460;
+      const nW = img.naturalWidth;
+      const nH = img.naturalHeight;
+
+      // Canvas aux dimensions exactes de l'image source
+      // (pas de letterbox, pas de crop, pas de clamp)
+      // On redimensionne juste pour ne pas dépasser 800px de large
+      const MAX = 800;
+      const scale = nW > MAX ? MAX / nW : 1;
+      const OUT_W = Math.round(nW * scale);
+      const OUT_H = Math.round(nH * scale);
+
       const canvas = document.createElement("canvas");
       canvas.width = OUT_W; canvas.height = OUT_H;
       const ctx = canvas.getContext("2d");
 
-      // Dessin de l'image complète dans le canvas (letterbox si ratio différent)
-      const imgRatio = img.naturalWidth / img.naturalHeight;
-      const canRatio = OUT_W / OUT_H;
-      let drawW, drawH, drawX, drawY;
-      if (imgRatio > canRatio) {
-        // Image plus large : on cale sur la largeur
-        drawW = OUT_W; drawH = OUT_W / imgRatio;
-        drawX = 0;     drawY = (OUT_H - drawH) / 2;
-      } else {
-        // Image plus haute : on cale sur la hauteur
-        drawH = OUT_H; drawW = OUT_H * imgRatio;
-        drawX = (OUT_W - drawW) / 2; drawY = 0;
-      }
-      // Fond noir pour les bandes letterbox
-      ctx.fillStyle = "#1a2535";
-      ctx.fillRect(0, 0, OUT_W, OUT_H);
-      ctx.drawImage(img, drawX, drawY, drawW, drawH);
+      // Image complète, redimensionnée
+      ctx.drawImage(img, 0, 0, OUT_W, OUT_H);
 
-      // Position du marqueur : x/y sont en % de l'image → on mappe sur la zone dessinée
-      const markerX = drawX + (x / 100) * drawW;
-      const markerY = drawY + (y / 100) * drawH;
+      // Position du marqueur : x/y sont en % → mapping direct, toujours dans l'image
+      const markerX = (x / 100) * OUT_W;
+      const markerY = (y / 100) * OUT_H;
 
-      // Dessin du marqueur
       const t = TYPES[type] || {c:"#e8291c"};
+
+      // Taille du marqueur proportionnelle à l'image (min 12px, max 28px)
+      const r = Math.max(12, Math.min(28, OUT_W * 0.025));
 
       // Halo blanc translucide
       ctx.beginPath();
-      ctx.arc(markerX, markerY, 26, 0, Math.PI * 2);
+      ctx.arc(markerX, markerY, r * 1.7, 0, Math.PI * 2);
       ctx.fillStyle = "rgba(255,255,255,0.35)";
       ctx.fill();
 
       // Disque coloré
       ctx.beginPath();
-      ctx.arc(markerX, markerY, 16, 0, Math.PI * 2);
+      ctx.arc(markerX, markerY, r, 0, Math.PI * 2);
       ctx.fillStyle = t.c;
       ctx.fill();
       ctx.strokeStyle = "#fff";
-      ctx.lineWidth = 3;
+      ctx.lineWidth = Math.max(2, r * 0.2);
       ctx.stroke();
 
       // Croix blanche
+      const cr = r * 0.5;
       ctx.strokeStyle = "#fff";
-      ctx.lineWidth = 2.5;
+      ctx.lineWidth = Math.max(1.5, r * 0.15);
       ctx.lineCap = "round";
-      ctx.beginPath(); ctx.moveTo(markerX-7, markerY); ctx.lineTo(markerX+7, markerY); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(markerX, markerY-7); ctx.lineTo(markerX, markerY+7); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(markerX - cr, markerY); ctx.lineTo(markerX + cr, markerY); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(markerX, markerY - cr); ctx.lineTo(markerX, markerY + cr); ctx.stroke();
 
       res(canvas.toDataURL("image/jpeg", 0.92));
     };
