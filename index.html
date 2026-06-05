@@ -3,137 +3,181 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Inspection">
   <meta name="theme-color" content="#e8291c">
-  
   <title>Audit Nuisibles — Rentokil</title>
-  
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
-      background: #f3f4f6;
-      color: #111;
-      -webkit-tap-highlight-color: transparent;
-      overscroll-behavior: none;
+      background: #f3f4f6; color: #111;
+      -webkit-tap-highlight-color: transparent; overscroll-behavior: none;
     }
-    
-    input, textarea, select, button {
-      font-family: inherit;
-      font-size: 14px;
-      outline: none;
-    }
-    
-    button { cursor: pointer; }
-    textarea { resize: vertical; }
+    input, textarea, select, button { font-family: inherit; font-size: 14px; outline: none; }
+    button { cursor: pointer; } textarea { resize: vertical; }
     img { display: block; max-width: 100%; }
-    
-    /* Structure des pages */
     .page { display: none; min-height: 100dvh; flex-direction: column; }
     .page.active { display: flex; }
     .scroll { overflow-y: auto; flex: 1; -webkit-overflow-scrolling: touch; }
     .pad { padding: 16px; }
-    
-    /* Composants UI */
     .bar {
-      background: #fff;
-      border-bottom: 1px solid #e5e7eb;
-      padding: 12px 16px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      position: sticky;
-      top: 0;
-      z-index: 40;
-      flex-shrink: 0;
+      background: #fff; border-bottom: 1px solid #e5e7eb;
+      padding: 12px 16px; display: flex; align-items: center; gap: 10px;
+      position: sticky; top: 0; z-index: 40; flex-shrink: 0;
     }
-    
     .bar-title { flex: 1; font-weight: 600; font-size: 16px; }
-    
     .back-btn {
-      background: none;
-      border: none;
-      font-size: 20px;
-      color: #6b7280;
-      padding: 0 4px;
-      min-width: 32px;
-      min-height: 32px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      background: none; border: none; font-size: 20px; color: #6b7280;
+      padding: 0 4px; min-width: 32px; min-height: 32px;
+      display: flex; align-items: center; justify-content: center;
     }
-    
     .btn-r { background: #e8291c; color: #fff; border: none; border-radius: 10px; padding: 10px 16px; font-weight: 600; font-size: 14px; }
     .btn-g { background: #fff; border: 1px solid #d1d5db; border-radius: 10px; padding: 10px 16px; font-size: 14px; color: #374151; }
     .btn-green { background: #16a34a; color: #fff; border: none; border-radius: 10px; padding: 10px 16px; font-weight: 600; font-size: 14px; }
-    
     .inp { width: 100%; border: 1px solid #d1d5db; border-radius: 8px; padding: 10px 12px; font-size: 14px; background: #fff; color: #111; margin-top: 4px; }
     .lbl { font-size: 13px; font-weight: 500; color: #374151; display: block; margin-bottom: 2px; margin-top: 12px; }
     .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 14px 16px; margin-bottom: 8px; }
     .chip { padding: 6px 12px; border-radius: 20px; border: 1px solid #d1d5db; background: #f9fafb; color: #374151; font-size: 13px; cursor: pointer; display: inline-block; margin: 3px; }
-    
-    /* Overlays & Modals */
     .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 100; align-items: flex-end; }
     .overlay.open { display: flex; }
     .modal { background: #fff; border-radius: 18px 18px 0 0; width: 100%; padding: 20px; max-height: 85dvh; overflow-y: auto; }
-    
-    /* Cartographie */
     .marker { position: absolute; width: 28px; height: 28px; border-radius: 50%; border: 2.5px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 11px; font-weight: bold; cursor: pointer; transform: translate(-50%,-50%); z-index: 10; }
-    
-    /* Grids */
     .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
     .grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
-    
-    /* Photos & Formulaires */
     .photo-slot { aspect-ratio: 1; border: 2px dashed #d1d5db; border-radius: 10px; display: flex; align-items: center; justify-content: center; overflow: hidden; cursor: pointer; background: #f9fafb; font-size: 24px; color: #9ca3af; }
     .photo-slot img { width: 100%; height: 100%; object-fit: cover; }
     .reco-row { padding: 9px 12px; border-radius: 8px; border: 1px solid #e5e7eb; background: #f9fafb; font-size: 13px; display: flex; align-items: center; gap: 8px; cursor: pointer; margin-bottom: 6px; text-align: left; width: 100%; color: #111; }
     .reco-row.on { background: #f0fdf4; border-color:#16a34a; }
     .prio-row { padding: 9px 12px; border-radius: 8px; border: 1px solid #e5e7eb; background: #f9fafb; font-size: 13px; cursor: pointer; margin-bottom: 6px; text-align: left; width: 100%; color: #111; }
-    
-    /* En-têtes spécifiques */
-    .cover-bar { background: #e8291c; padding: 24px 16px 32px; }
-    .cover-title { font-size: 22px; font-weight: 700; color: #fff; }
-    .cover-sub { font-size: 12px; color: rgba(255,255,255,0.7); margin-bottom: 4px; }
+
+    /* ===== PAGE ACCUEIL REDESIGN ===== */
+    #p-home { background: #e8291c; }
+    .home-hero {
+      background: #e8291c;
+      padding: 52px 24px 36px;
+      flex-shrink: 0;
+    }
+    .home-hero-logo {
+      font-size: 42px; font-weight: 900; color: #fff;
+      letter-spacing: -1px; line-height: 1;
+      margin-bottom: 4px;
+    }
+    .home-hero-sub {
+      font-size: 11px; color: rgba(255,255,255,0.6);
+      letter-spacing: 2.5px; text-transform: uppercase;
+      margin-bottom: 28px;
+    }
+    .home-hero-title {
+      font-size: 28px; font-weight: 700; color: #fff;
+      line-height: 1.2; margin-bottom: 6px;
+    }
+    .home-hero-date {
+      font-size: 13px; color: rgba(255,255,255,0.65);
+    }
+    .home-stats {
+      display: flex; gap: 12px;
+      padding: 0 24px 24px;
+      background: #e8291c;
+      flex-shrink: 0;
+    }
+    .home-stat {
+      flex: 1; background: rgba(255,255,255,0.15);
+      border-radius: 12px; padding: 12px 14px;
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+    .home-stat-num { font-size: 24px; font-weight: 800; color: #fff; line-height: 1; }
+    .home-stat-lbl { font-size: 11px; color: rgba(255,255,255,0.65); margin-top: 2px; }
+    .home-body {
+      background: #f3f4f6;
+      border-radius: 20px 20px 0 0;
+      flex: 1; padding: 20px 16px;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .home-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+    .home-action-btn {
+      background: #fff; border: 1px solid #e5e7eb; border-radius: 14px;
+      padding: 16px 12px; display: flex; flex-direction: column; align-items: center; gap: 8px;
+      cursor: pointer; transition: transform .1s;
+    }
+    .home-action-btn:active { transform: scale(0.97); }
+    .home-action-btn.primary { background: #e8291c; border-color: #e8291c; }
+    .home-action-btn .icon { font-size: 26px; }
+    .home-action-btn .lbl2 { font-size: 13px; font-weight: 600; color: #374151; }
+    .home-action-btn.primary .lbl2 { color: #fff; }
+    .home-section-title { font-size: 13px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
+
+    /* Autres pages */
     .insp-header { background: #e8291c; padding: 12px 16px; flex-shrink: 0; }
     .plans-scroll { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; margin-top: 10px; }
     .plan-tab { flex-shrink: 0; font-size: 11px; padding: 4px 10px; border-radius: 20px; cursor: pointer; border: 1px solid rgba(255,255,255,0.4); background: transparent; color: rgba(255,255,255,0.9); white-space: nowrap; }
     .plan-tab.sel { background: #fff; color: #e8291c; border-color: #fff; }
     .bot-bar { background: #fff; border-top: 1px solid #e5e7eb; padding: 10px 16px; display: flex; gap: 10px; flex-shrink: 0; }
     .tag { display: inline-flex; align-items: center; gap: 4px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 20px; padding: 4px 10px; font-size: 13px; margin: 3px; }
-    
     #toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: #111; color: #fff; padding: 10px 18px; border-radius: 8px; font-size: 13px; z-index: 200; display: none; white-space: nowrap; }
+    .cover-bar { background: #e8291c; padding: 24px 16px 32px; }
+    .cover-title { font-size: 22px; font-weight: 700; color: #fff; }
+    .cover-sub { font-size: 12px; color: rgba(255,255,255,0.7); margin-bottom: 4px; }
   </style>
 </head>
 <body>
-
 <div id="toast" role="alert" aria-live="assertive"></div>
 
+<!-- ACCUEIL -->
 <main id="p-home" class="page">
-  <div class="cover-bar">
-    <div class="cover-sub">Rentokil · Audit terrain</div>
-    <h1 class="cover-title">Inspections</h1>
+  <div class="home-hero">
+    <div class="home-hero-logo">Rentokil</div>
+    <div class="home-hero-sub">The Experts in Pest Control</div>
+    <div class="home-hero-title">Audit Nuisibles</div>
+    <div class="home-hero-date" id="home-today"></div>
   </div>
-  <div class="scroll pad" style="margin-top:-16px">
+  <div class="home-stats">
+    <div class="home-stat">
+      <div class="home-stat-num" id="stat-clients">0</div>
+      <div class="home-stat-lbl">Clients</div>
+    </div>
+    <div class="home-stat">
+      <div class="home-stat-num" id="stat-inspections">0</div>
+      <div class="home-stat-lbl">Inspections</div>
+    </div>
+    <div class="home-stat">
+      <div class="home-stat-num" id="stat-constats">0</div>
+      <div class="home-stat-lbl">Constats totaux</div>
+    </div>
+  </div>
+  <div class="home-body">
     <div id="home-active"></div>
-    <div class="grid2" style="margin-bottom:10px">
-      <button type="button" class="btn-r" style="border-radius:12px;padding:14px 8px;width:100%" onclick="nav('p-insp-new')">+ Inspection</button>
-      <button type="button" class="btn-g" style="border-radius:12px;padding:14px 8px;width:100%" onclick="nav('p-clients')">👥 Clients</button>
+    <div class="home-actions">
+      <button type="button" class="home-action-btn primary" onclick="nav('p-insp-new')">
+        <span class="icon">＋</span>
+        <span class="lbl2">Nouvelle inspection</span>
+      </button>
+      <button type="button" class="home-action-btn" onclick="nav('p-clients')">
+        <span class="icon">👥</span>
+        <span class="lbl2">Clients</span>
+      </button>
+      <button type="button" class="home-action-btn" onclick="doExport()">
+        <span class="icon">💾</span>
+        <span class="lbl2">Exporter</span>
+      </button>
+      <button type="button" class="home-action-btn" onclick="document.getElementById('imp-file').click()">
+        <span class="icon">📂</span>
+        <span class="lbl2">Importer</span>
+      </button>
     </div>
-    <div class="grid2" style="margin-bottom:20px">
-      <button type="button" class="btn-g" style="width:100%;padding:9px 8px;font-size:13px" onclick="doExport()">💾 Exporter</button>
-      <button type="button" class="btn-g" style="width:100%;padding:9px 8px;font-size:13px" onclick="document.getElementById('imp-file').click()">📂 Importer</button>
-    </div>
+    <button type="button" class="home-action-btn" style="width:100%;flex-direction:row;justify-content:center;gap:10px;margin-bottom:16px;padding:13px 16px;border-radius:14px" onclick="nav('p-merge')">
+      <span style="font-size:20px">🔀</span>
+      <span style="font-size:14px;font-weight:600;color:#374151">Fusionner des inspections (multi-inspecteurs)</span>
+    </button>
     <input id="imp-file" type="file" accept=".json" style="display:none" onchange="doImport(this)">
     <div id="home-history"></div>
   </div>
 </main>
 
+<!-- CLIENTS -->
 <section id="p-clients" class="page">
   <div class="bar">
     <button type="button" class="back-btn" onclick="nav('p-home')" aria-label="Retour">←</button>
@@ -153,10 +197,8 @@
     <input type="hidden" id="cform-id">
     <label class="lbl" for="cform-name">Nom *</label>
     <input class="inp" id="cform-name" placeholder="Ex: Panzani Marseille">
-    
     <label class="lbl" for="cform-address">Adresse</label>
     <input class="inp" id="cform-address" placeholder="131 Av. Corot, 13013 Marseille">
-    
     <label class="lbl" for="cform-contact">Contact</label>
     <input class="inp" id="cform-contact" placeholder="Nom du responsable">
   </div>
@@ -184,13 +226,10 @@
   <div class="scroll pad">
     <label class="lbl" for="pform-name">Nom du plan *</label>
     <input class="inp" id="pform-name" placeholder="Extérieur, RDC, Bât. trituration 3ème...">
-    
     <label class="lbl" for="pform-building">Bâtiment</label>
     <input class="inp" id="pform-building" placeholder="Bâtiment trituration">
-    
     <label class="lbl" for="pform-floor">Niveau / Étage</label>
     <input class="inp" id="pform-floor" placeholder="RDC, 3ème étage...">
-    
     <label class="lbl">Image du plan *</label>
     <input type="file" id="pform-file" accept="image/*" style="display:none" onchange="onPlanFile(this)">
     <div id="pform-preview" onclick="document.getElementById('pform-file').click()" style="border:2px dashed #d1d5db;border-radius:12px;padding:16px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:130px;background:#f9fafb;margin-top:4px;font-size:13px;color:#9ca3af;">
@@ -201,6 +240,7 @@
   </div>
 </section>
 
+<!-- NOUVELLE INSPECTION -->
 <section id="p-insp-new" class="page">
   <div class="bar">
     <button type="button" class="back-btn" onclick="nav('p-home')" aria-label="Retour">←</button>
@@ -212,14 +252,13 @@
     <div id="new-no-client" style="display:none;font-size:12px;color:#e8291c;margin-top:4px">
       Aucun client. <span style="text-decoration:underline;cursor:pointer" onclick="openClientForm(null);nav('p-client-form')">Créer un client</span>
     </div>
-    
     <label class="lbl" for="new-auditor">Auditeur *</label>
     <input class="inp" id="new-auditor" placeholder="davy.slila@rentokil-initial.com" style="margin-bottom:20px">
-    
     <button type="button" class="btn-r" style="width:100%;padding:14px;font-size:15px" onclick="startInspection()">Démarrer →</button>
   </div>
 </section>
 
+<!-- INSPECTION ACTIVE -->
 <section id="p-insp-active" class="page">
   <div class="insp-header">
     <div style="display:flex;align-items:center;justify-content:space-between">
@@ -251,6 +290,7 @@
   </div>
 </section>
 
+<!-- CONSTAT FORM -->
 <section id="p-constat-form" class="page">
   <div class="bar">
     <button type="button" class="back-btn" id="cstat-back" aria-label="Retour">←</button>
@@ -260,6 +300,7 @@
   <div class="scroll pad" id="cstat-body"></div>
 </section>
 
+<!-- CONCLUSION -->
 <section id="p-conclusion" class="page">
   <div class="bar">
     <button type="button" class="back-btn" onclick="nav('p-insp-active')" aria-label="Retour">←</button>
@@ -274,6 +315,39 @@
   </div>
 </section>
 
+<!-- PAGE FUSION MULTI-INSPECTEURS -->
+<section id="p-merge" class="page">
+  <div class="bar">
+    <button type="button" class="back-btn" onclick="nav('p-home')" aria-label="Retour">←</button>
+    <span class="bar-title">Fusion multi-inspecteurs</span>
+  </div>
+  <div class="scroll pad">
+    <div class="card" style="background:#fff8e7;border-color:#fbbf24;margin-bottom:16px">
+      <div style="font-size:13px;font-weight:600;color:#92400e;margin-bottom:4px">💡 Comment ça marche ?</div>
+      <div style="font-size:12px;color:#78350f;line-height:1.6">
+        Chaque inspecteur exporte son fichier JSON (bouton Exporter). Un inspecteur charge ensuite tous les fichiers ici pour les fusionner en une seule inspection commune.
+      </div>
+    </div>
+
+    <div style="font-weight:600;margin-bottom:8px">1. Inspection de référence</div>
+    <select class="inp" id="merge-base-sel" style="margin-bottom:16px">
+      <option value="">-- Sélectionner l'inspection principale --</option>
+    </select>
+
+    <div style="font-weight:600;margin-bottom:8px">2. Fichiers à fusionner</div>
+    <div style="font-size:12px;color:#6b7280;margin-bottom:8px">Sélectionnez les exports JSON des autres inspecteurs</div>
+    <input type="file" id="merge-files" accept=".json" multiple style="display:none" onchange="onMergeFiles(this)">
+    <button type="button" class="btn-g" style="width:100%;margin-bottom:8px" onclick="document.getElementById('merge-files').click()">📂 Charger des fichiers JSON</button>
+    <div id="merge-files-list" style="margin-bottom:16px"></div>
+
+    <div style="font-weight:600;margin-bottom:8px">3. Prévisualisation de la fusion</div>
+    <div id="merge-preview" style="margin-bottom:16px"></div>
+
+    <button type="button" class="btn-green" style="width:100%;padding:14px;font-size:15px" onclick="doMerge()">🔀 Fusionner et créer l'inspection</button>
+  </div>
+</section>
+
+<!-- MODALS -->
 <div class="overlay" id="modal-type" role="dialog" aria-modal="true">
   <div class="modal">
     <div style="text-align:center;font-weight:600;margin-bottom:16px;font-size:15px">Type de constat</div>
@@ -281,7 +355,6 @@
     <button type="button" style="width:100%;margin-top:14px;padding:10px;background:none;border:none;color:#6b7280;font-size:14px" onclick="closeModal('modal-type')">Annuler</button>
   </div>
 </div>
-
 <div class="overlay" id="modal-cdetail" role="dialog" aria-modal="true">
   <div class="modal" id="modal-cdetail-body"></div>
 </div>
@@ -312,19 +385,83 @@ const PRIOS=[
 ];
 
 let S={
-  clients:JSON.parse(localStorage.getItem("clients")||"[]"),
-  plans:JSON.parse(localStorage.getItem("plans")||"{}"),
-  inspections:JSON.parse(localStorage.getItem("inspections")||"[]"),
-  activeInsp:JSON.parse(localStorage.getItem("activeInsp")||"null"),
-  constats:JSON.parse(localStorage.getItem("constats")||"[]"),
+  clients:safeGet("clients","[]"),
+  plans:safeGet("plans","{}"),
+  inspections:safeGet("inspections","[]"),
+  activeInsp:safeGet("activeInsp","null"),
+  constats:safeGet("constats","[]"),
   currentClientId:null,selPlanId:null,pendPt:null,
   editConstatId:null,cstatType:null,fromInsp:false
 };
 
-function persist(keys){
-  (keys||["clients","plans","inspections","activeInsp","constats"]).forEach(k=>{
-    localStorage.setItem(k,JSON.stringify(S[k]));
+// ===== GESTION LOCALSTORAGE ROBUSTE =====
+function safeGet(key, def) {
+  try { return JSON.parse(localStorage.getItem(key)||def); }
+  catch(e) { return JSON.parse(def); }
+}
+
+function safePersist(key, value) {
+  const str = JSON.stringify(value);
+  // Estimation de la taille
+  const sizeKB = Math.round(str.length * 2 / 1024);
+  try {
+    localStorage.setItem(key, str);
+    return true;
+  } catch(e) {
+    if(e.name === 'QuotaExceededError' || e.code === 22) {
+      // Tentative de libération : purger les photos des inspections terminées
+      console.warn(`Quota dépassé sur "${key}" (${sizeKB} KB). Tentative de compression...`);
+      tryFreeStorage();
+      try {
+        localStorage.setItem(key, str);
+        toast(`⚠️ Stockage libéré automatiquement`);
+        return true;
+      } catch(e2) {
+        showStorageError(sizeKB);
+        return false;
+      }
+    }
+    return false;
+  }
+}
+
+function tryFreeStorage() {
+  // Supprime les photos des constats des inspections terminées (les garde dans le rapport généré)
+  const inspDone = S.inspections.filter(i => i.status === 'done');
+  inspDone.forEach(insp => {
+    if(insp.constats) {
+      insp.constats = insp.constats.map(c => ({...c, photos: [], locationSnap: null}));
+    }
   });
+  S.inspections = [...inspDone, ...S.inspections.filter(i => i.status !== 'done')];
+  try { localStorage.setItem('inspections', JSON.stringify(S.inspections)); } catch(e) {}
+}
+
+function showStorageError(sizeKB) {
+  const used = getStorageUsed();
+  const msg = `⚠️ Stockage plein (${used} Mo utilisés)\n\nActions possibles :\n• Exportez une sauvegarde JSON\n• Supprimez d'anciennes inspections\n• Réduisez le nombre de photos`;
+  alert(msg);
+}
+
+function getStorageUsed() {
+  let total = 0;
+  for(let k in localStorage) {
+    if(localStorage.hasOwnProperty(k)) total += (localStorage[k].length * 2);
+  }
+  return (total / 1024 / 1024).toFixed(1);
+}
+
+function persist(keys) {
+  (keys || ["clients","plans","inspections","activeInsp","constats"]).forEach(k => {
+    safePersist(k, S[k]);
+  });
+}
+
+function getStorageInfo() {
+  const used = getStorageUsed();
+  const MAX = 5; // Mo estimé disponible
+  const pct = Math.min(100, Math.round(used / MAX * 100));
+  return { used, pct };
 }
 
 const uid=()=>Math.random().toString(36).substr(2,9);
@@ -333,9 +470,8 @@ const fmt=d=>new Date(d).toLocaleDateString("fr-FR");
 
 function toast(msg){
   const t=document.getElementById("toast");
-  t.textContent=msg;
-  t.style.display="block";
-  setTimeout(()=>t.style.display="none",2200);
+  t.textContent=msg; t.style.display="block";
+  setTimeout(()=>t.style.display="none",2800);
 }
 function closeModal(id){document.getElementById(id).classList.remove("open");}
 
@@ -349,7 +485,7 @@ const compress=(file,maxW)=>new Promise(res=>{
       if(w>maxW){h=h*maxW/w;w=maxW;}
       c.width=w;c.height=h;
       c.getContext("2d").drawImage(img,0,0,w,h);
-      res(c.toDataURL("image/jpeg",0.92));
+      res(c.toDataURL("image/jpeg",0.85)); // légèrement plus compressé
     };
     img.src=e.target.result;
   };
@@ -360,24 +496,45 @@ function nav(pageId){
   document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
   const p=document.getElementById(pageId);
   if(p){p.classList.add("active");window.scrollTo(0,0);}
-  if(pageId==="p-home")       renderHome();
-  if(pageId==="p-clients")      renderClients();
+  if(pageId==="p-home")        renderHome();
+  if(pageId==="p-clients")     renderClients();
   if(pageId==="p-insp-new")    renderInspNew();
   if(pageId==="p-insp-active") renderInspActive();
   if(pageId==="p-conclusion")  renderConclusion();
+  if(pageId==="p-merge")       renderMergePage();
 }
 
-/* ACCUEIL */
+/* ===== ACCUEIL ===== */
 function renderHome(){
+  const now = new Date();
+  document.getElementById("home-today").textContent =
+    now.toLocaleDateString("fr-FR",{weekday:"long",year:"numeric",month:"long",day:"numeric"});
+
+  // Stats
+  const totalConstats = S.inspections.reduce((a,i)=>a+(i.constatsCount||0),0)
+    + (S.activeInsp ? S.constats.length : 0);
+  document.getElementById("stat-clients").textContent = S.clients.length;
+  document.getElementById("stat-inspections").textContent = S.inspections.filter(i=>i.status==="done").length;
+  document.getElementById("stat-constats").textContent = totalConstats;
+
+  // Stockage
+  const si = getStorageInfo();
+  const storWarn = si.pct > 70
+    ? `<div style="background:#fef3c7;border:1px solid #fbbf24;border-radius:10px;padding:10px 12px;font-size:12px;color:#92400e;margin-bottom:12px">
+        ⚠️ Stockage local : ${si.used} Mo utilisés (${si.pct}%). <span style="text-decoration:underline;cursor:pointer" onclick="doExport()">Exporter une sauvegarde</span>
+       </div>` : '';
+
+  // Inspection en cours
   const ha=document.getElementById("home-active");
   if(S.activeInsp){
-    ha.innerHTML=`<div class="card" style="border:2px solid #16a34a;cursor:pointer;margin-bottom:12px" onclick="nav('p-insp-active')">
+    ha.innerHTML=storWarn+`<div class="card" style="border:2px solid #16a34a;cursor:pointer;margin-bottom:12px" onclick="nav('p-insp-active')">
       <div style="font-size:11px;color:#16a34a;font-weight:700">● EN COURS</div>
       <div style="font-weight:700;font-size:15px;margin-top:2px">${esc(S.activeInsp.clientName)}</div>
       <div style="font-size:12px;color:#6b7280;margin-top:2px">${esc(S.activeInsp.auditor)} · ${S.constats.length} constat(s) · ${fmt(S.activeInsp.date)}</div>
       <div style="font-size:12px;color:#16a34a;margin-top:6px">Reprendre →</div>
     </div>`;
-  } else {ha.innerHTML="";}
+  } else { ha.innerHTML=storWarn; }
+
   const hh=document.getElementById("home-history");
   const done=S.inspections.filter(i=>i.status==="done").sort((a,b)=>b.date.localeCompare(a.date));
   if(done.length===0&&S.clients.length===0&&!S.activeInsp){
@@ -388,11 +545,12 @@ function renderHome(){
     </div>`;return;
   }
   if(done.length===0){hh.innerHTML="";return;}
-  hh.innerHTML=`<div style="font-weight:600;font-size:14px;margin-bottom:8px">Inspections terminées</div>`+
+  hh.innerHTML=`<div class="home-section-title" style="margin-bottom:8px">Inspections terminées</div>`+
     done.map(i=>`<div class="card" style="display:flex;align-items:center;gap:10px">
       <div style="flex:1;min-width:0">
         <div style="font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(i.clientName)}</div>
         <div style="font-size:12px;color:#6b7280">${fmt(i.date)} · ${esc(i.auditor)} · ${i.constatsCount||0} constats</div>
+        ${i.mergedFrom ? `<div style="font-size:11px;color:#7c3aed">🔀 Fusionnée (${i.mergedFrom.length} inspecteurs)</div>` : ""}
       </div>
       <div style="display:flex;gap:6px;flex-shrink:0">
         <button type="button" class="btn-g" style="padding:6px 10px;font-size:12px" onclick="window.generateReportTarget('${i.id}')">PDF</button>
@@ -402,12 +560,16 @@ function renderHome(){
 }
 
 function doExport(){
-  const data={version:1,exportDate:new Date().toISOString(),clients:S.clients,plans:S.plans,inspections:S.inspections};
+  const data={version:2,exportDate:new Date().toISOString(),
+    clients:S.clients,plans:S.plans,inspections:S.inspections,
+    activeInsp:S.activeInsp,constats:S.constats};
   const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);
-  a.download=`audit_backup_${new Date().toISOString().slice(0,10)}.json`;a.click();URL.revokeObjectURL(a.href);
+  a.download=`audit_backup_${new Date().toISOString().slice(0,10)}.json`;
+  a.click();URL.revokeObjectURL(a.href);
   toast("Export téléchargé ✓");
 }
+
 function doImport(input){
   const file=input.files[0];if(!file)return;
   const fr=new FileReader();
@@ -415,20 +577,159 @@ function doImport(input){
     try{
       const d=JSON.parse(e.target.result);
       if(!confirm(`Importer ? (${d.clients?.length||0} clients, ${d.inspections?.length||0} inspections)\nATTENTION : remplace les données actuelles.`))return;
-      if(d.clients)S.clients=d.clients;if(d.plans)S.plans=d.plans;if(d.inspections)S.inspections=d.inspections;
+      if(d.clients)S.clients=d.clients;
+      if(d.plans)S.plans=d.plans;
+      if(d.inspections)S.inspections=d.inspections;
+      if(d.activeInsp)S.activeInsp=d.activeInsp;
+      if(d.constats)S.constats=d.constats;
       persist();renderHome();toast("Import réussi ✓");
     }catch(err){alert("Fichier invalide");}
   };
   fr.readAsText(file);input.value="";
 }
+
 function reopenInspection(id){
   const i=S.inspections.find(x=>x.id===id);if(!i)return;
   if(!confirm(`Rouvrir l'inspection "${i.clientName}" du ${fmt(i.date)} pour la modifier ?`))return;
-  i.status="active";S.activeInsp=i;S.constats=i.constats||[];persist(["activeInsp","constats","inspections"]);
+  i.status="active";S.activeInsp=i;S.constats=i.constats||[];
+  persist(["activeInsp","constats","inspections"]);nav("p-insp-active");
+}
+
+/* ===== FUSION MULTI-INSPECTEURS ===== */
+let _mergeExtraFiles = [];
+
+function renderMergePage(){
+  const sel = document.getElementById("merge-base-sel");
+  const allInsp = [
+    ...(S.activeInsp ? [{...S.activeInsp, constats: S.constats}] : []),
+    ...S.inspections
+  ];
+  sel.innerHTML = `<option value="">-- Sélectionner --</option>` +
+    allInsp.map(i=>`<option value="${i.id}">${esc(i.clientName)} — ${fmt(i.date)} — ${esc(i.auditor)}</option>`).join("");
+  _mergeExtraFiles = [];
+  document.getElementById("merge-files-list").innerHTML = "";
+  document.getElementById("merge-preview").innerHTML = "";
+}
+
+function onMergeFiles(input){
+  const files = Array.from(input.files);
+  _mergeExtraFiles = [];
+  Promise.all(files.map(f => new Promise(res => {
+    const fr = new FileReader();
+    fr.onload = e => { try { res(JSON.parse(e.target.result)); } catch(e) { res(null); } };
+    fr.readAsText(f);
+  }))).then(results => {
+    _mergeExtraFiles = results.filter(Boolean);
+    renderMergeFilesList();
+    renderMergePreview();
+  });
+  input.value = "";
+}
+
+function renderMergeFilesList(){
+  document.getElementById("merge-files-list").innerHTML = _mergeExtraFiles.map((d,i)=>`
+    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:8px 12px;font-size:13px;margin-bottom:6px">
+      ✅ Fichier ${i+1} : ${d.clients?.length||0} clients · ${d.inspections?.length||0} inspections
+      ${d.activeInsp ? ` · +1 inspection active (${esc(d.activeInsp.clientName)})` : ""}
+    </div>`).join("");
+}
+
+function renderMergePreview(){
+  const baseId = document.getElementById("merge-base-sel").value;
+  if(!baseId || _mergeExtraFiles.length === 0){ document.getElementById("merge-preview").innerHTML = ""; return; }
+  const allExtra = collectAllConstatsFromFiles(_mergeExtraFiles, baseId);
+  document.getElementById("merge-preview").innerHTML = `
+    <div class="card" style="border-color:#7c3aed">
+      <div style="font-size:13px;font-weight:600;color:#7c3aed;margin-bottom:6px">Aperçu de la fusion</div>
+      <div style="font-size:13px;color:#374151">
+        <div>+ ${allExtra.length} constats supplémentaires issus des fichiers chargés</div>
+        <div style="font-size:12px;color:#6b7280;margin-top:4px">Les doublons (même ID) seront ignorés automatiquement</div>
+      </div>
+    </div>`;
+}
+
+function collectAllConstatsFromFiles(files, baseId){
+  let all = [];
+  files.forEach(d => {
+    // Constats de l'inspection active de ce fichier si même client
+    if(d.activeInsp && d.activeInsp.clientId){
+      const baseInsp = getInspById(baseId);
+      if(baseInsp && d.activeInsp.clientId === baseInsp.clientId){
+        all = all.concat(d.constats || []);
+      }
+    }
+    // Constats des inspections terminées
+    (d.inspections||[]).forEach(insp => {
+      const baseInsp = getInspById(baseId);
+      if(baseInsp && insp.clientId === baseInsp.clientId){
+        all = all.concat(insp.constats || []);
+      }
+    });
+  });
+  return all;
+}
+
+function getInspById(id){
+  if(S.activeInsp && S.activeInsp.id === id) return {...S.activeInsp, constats: S.constats};
+  return S.inspections.find(i => i.id === id) || null;
+}
+
+function doMerge(){
+  const baseId = document.getElementById("merge-base-sel").value;
+  if(!baseId){ alert("Sélectionnez une inspection de référence"); return; }
+  if(_mergeExtraFiles.length === 0){ alert("Aucun fichier chargé"); return; }
+
+  const baseInsp = getInspById(baseId);
+  if(!baseInsp){ alert("Inspection introuvable"); return; }
+
+  const baseConstats = [...(baseInsp.constats || S.constats || [])];
+  const extraConstats = collectAllConstatsFromFiles(_mergeExtraFiles, baseId);
+
+  // Dédoublonnage par ID
+  const existingIds = new Set(baseConstats.map(c=>c.id));
+  const newConstats = extraConstats.filter(c => !existingIds.has(c.id));
+
+  const merged = [...baseConstats, ...newConstats];
+  const auditors = [baseInsp.auditor];
+  _mergeExtraFiles.forEach(d => {
+    const aud = d.activeInsp?.auditor || d.inspections?.[0]?.auditor;
+    if(aud && !auditors.includes(aud)) auditors.push(aud);
+  });
+
+  // Fusionner aussi les plans/clients des fichiers
+  _mergeExtraFiles.forEach(d => {
+    (d.clients||[]).forEach(c => { if(!S.clients.find(x=>x.id===c.id)) S.clients.push(c); });
+    Object.entries(d.plans||{}).forEach(([cid, plans]) => {
+      if(!S.plans[cid]) S.plans[cid] = [];
+      (plans||[]).forEach(p => { if(!S.plans[cid].find(x=>x.id===p.id)) S.plans[cid].push(p); });
+    });
+  });
+
+  const mergedInsp = {
+    id: uid(),
+    clientId: baseInsp.clientId,
+    clientName: baseInsp.clientName,
+    clientAddress: baseInsp.clientAddress || "",
+    auditor: auditors.join(", "),
+    date: new Date().toISOString(),
+    status: "active",
+    constats: merged,
+    constatsCount: merged.length,
+    mergedFrom: auditors,
+    inspectors: auditors
+  };
+
+  S.inspections.unshift(mergedInsp);
+  S.activeInsp = mergedInsp;
+  S.constats = merged;
+  persist();
+
+  toast(`✅ Fusion OK — ${merged.length} constats (${newConstats.length} ajoutés)`);
+  _mergeExtraFiles = [];
   nav("p-insp-active");
 }
 
-/* CLIENTS */
+/* ===== CLIENTS ===== */
 function renderClients(){
   const el=document.getElementById("clients-list");
   if(S.clients.length===0){el.innerHTML=`<div style="text-align:center;color:#9ca3af;padding:32px">Aucun client</div>`;return;}
@@ -477,7 +778,7 @@ function openClientDetail(clientId){
   nav("p-client-detail");
 }
 
-/* PLANS */
+/* ===== PLANS ===== */
 function openPlanForm(){
   document.getElementById("pform-name").value="";document.getElementById("pform-building").value="";
   document.getElementById("pform-floor").value="";document.getElementById("pform-image").value="";
@@ -502,7 +803,7 @@ function savePlan(){
   if(S.fromInsp){S.fromInsp=false;nav("p-insp-active");}else{openClientDetail(cid);}
 }
 
-/* NOUVELLE INSPECTION */
+/* ===== NOUVELLE INSPECTION ===== */
 function renderInspNew(){
   const sel=document.getElementById("new-client-sel");
   sel.innerHTML=`<option value="">-- Sélectionner --</option>`+S.clients.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join("");
@@ -519,7 +820,7 @@ function startInspection(){
   S.inspections.unshift(ni);S.activeInsp=ni;S.constats=[];persist();nav("p-insp-active");
 }
 
-/* INSPECTION ACTIVE */
+/* ===== INSPECTION ACTIVE ===== */
 function renderInspActive(){
   if(!S.activeInsp)return nav("p-home");
   document.getElementById("ia-client-name").textContent=S.activeInsp.clientName;
@@ -592,7 +893,7 @@ function openConstatDetail(constatId){
       ${c.subtype?`<span style="color:${t.c};font-size:13px">▸ ${esc(c.subtype)}</span>`:""}
       <span style="margin-left:auto;font-size:15px">${PRIOS[c.priority]?.e||"🔴"}</span>
     </div>
-    ${c.photos?.some(Boolean)?`<div style="display:flex;gap:6px;margin-bottom:10px">${c.photos.map((ph,i)=>ph?`<img src="${ph}" alt="Aperçu constat" style="width:80px;height:60px;object-fit:cover;border-radius:6px">`:``).join("")}</div>`:""}
+    ${c.photos?.some(Boolean)?`<div style="display:flex;gap:6px;margin-bottom:10px">${c.photos.map((ph,i)=>ph?`<img src="${ph}" alt="Aperçu" style="width:80px;height:60px;object-fit:cover;border-radius:6px">`:``).join("")}</div>`:""}
     ${c.observations?`<div style="font-size:13px;color:#374151;margin-bottom:8px;line-height:1.5">${esc(c.observations)}</div>`:""}
     ${c.recommendations?.length?`<div style="font-size:12px;color:#6b7280;line-height:1.6">${c.recommendations.map(esc).join(" · ")}</div>`:""}
     <div style="display:flex;gap:8px;margin-top:14px">
@@ -620,7 +921,7 @@ function deleteActiveInsp(){
   persist();toast("Inspection supprimée");nav("p-home");
 }
 
-/* FORMULAIRE CONSTAT */
+/* ===== FORMULAIRE CONSTAT ===== */
 let _photos=[],_recos=[],_subtype="",_species="",_priority=0;
 function buildConstatForm(type,existing){
   _photos=[...(existing?.photos||[])];_recos=[...(existing?.recommendations||[])];
@@ -629,7 +930,6 @@ function buildConstatForm(type,existing){
   document.getElementById("cstat-title").textContent=existing?"Modifier constat":"Nouveau constat";
   document.getElementById("cstat-back").onclick=()=>nav("p-insp-active");
   const plan=S.selPlanId?(S.plans[S.activeInsp?.clientId]||[]).find(p=>p.id===S.selPlanId):null;
-  
   document.getElementById("cstat-body").innerHTML=`
     ${plan?`<div style="background:#f9fafb;border-radius:8px;padding:8px 12px;font-size:12px;color:#6b7280;margin-bottom:14px">📍 ${esc([plan.building,plan.name].filter(Boolean).join(" · "))}</div>`:""}
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
@@ -719,9 +1019,9 @@ function addCustomReco(){
 function triggerPhoto(i){document.getElementById(`ph-inp-${i}`).click();}
 async function onConstatPhoto(i,input){
   const file=input.files[0];if(!file)return;
-  const img=await compress(file,1800);_photos[i]=img;
+  const img=await compress(file,1600);_photos[i]=img;
   const slot=document.getElementById(`ph-slot-${i}`);
-  slot.innerHTML=`<img src="${img}" alt="Constat vignette ${i+1}" style="width:100%;height:100%;object-fit:cover">`;
+  slot.innerHTML=`<img src="${img}" alt="Photo ${i+1}" style="width:100%;height:100%;object-fit:cover">`;
 }
 
 function capturePlanSnapshot(plan,x,y,type){
@@ -744,7 +1044,7 @@ function capturePlanSnapshot(plan,x,y,type){
       ctx.strokeStyle="#fff";ctx.lineWidth=2.5;ctx.lineCap="round";
       ctx.beginPath();ctx.moveTo(px-7,py);ctx.lineTo(px+7,py);ctx.stroke();
       ctx.beginPath();ctx.moveTo(px,py-7);ctx.lineTo(px,py+7);ctx.stroke();
-      res(c.toDataURL("image/jpeg",0.92));
+      res(c.toDataURL("image/jpeg",0.85));
     };
     img.onerror=()=>res(null);img.src=plan.image;
   });
@@ -766,7 +1066,7 @@ async function saveConstat(){
   updateConstatCount();renderMarkers();
 }
 
-/* CONCLUSION */
+/* ===== CONCLUSION ===== */
 function renderConclusion(){
   const byType=S.constats.reduce((a,c)=>{a[c.type]=(a[c.type]||0)+1;return a},{});
   document.getElementById("concl-summary").innerHTML=`<div style="font-weight:600;margin-bottom:10px">${S.constats.length} constat(s)</div>
@@ -784,7 +1084,7 @@ function finishInspection(){
   S.activeInsp=null;S.constats=[];persist();toast("Inspection terminée ✓");nav("p-home");
 }
 
-/* GENERATION RAPPORT PDF */
+/* ===== GÉNÉRATION RAPPORT PDF ===== */
 function generateReport(insp,constats,conclusion){
   const C=Array.isArray(constats)?constats:[];
   const byType=C.reduce((a,c)=>{a[c.type]=(a[c.type]||0)+1;return a},{});
@@ -794,6 +1094,7 @@ function generateReport(insp,constats,conclusion){
   const N=2+C.length+(C.length>0?1:0)+1;
   let sn=1;
 
+  // Pied de page SANS "Rentokil" dans le header — juste le footer rouge
   const foot=(info)=>`
     <div style="background:${RED};height:9mm;display:flex;align-items:center;justify-content:space-between;padding:0 10mm;flex-shrink:0;font-family:Arial,sans-serif">
       <span style="font-size:7.5pt;color:rgba(255,255,255,0.8)">${info||""}</span>
@@ -804,55 +1105,62 @@ function generateReport(insp,constats,conclusion){
       </div>
     </div>`;
 
+  // PAGE 1 — COUVERTURE TOUT ROUGE
   const s1=`
-  <div style="width:297mm;height:210mm;display:flex;page-break-after:always;overflow:hidden;font-family:Arial,sans-serif">
-    <div style="width:55%;background:${RED};padding:12mm;display:flex;flex-direction:column;justify-content:space-between">
-      <div style="font-size:52pt;font-weight:900;color:#fff;line-height:1;white-space:nowrap;letter-spacing:-1px">Rentokil</div>
+  <div style="width:297mm;height:210mm;display:flex;page-break-after:always;overflow:hidden;font-family:Arial,sans-serif;background:${RED};">
+    <div style="flex:1;padding:16mm 14mm;display:flex;flex-direction:column;justify-content:space-between;">
       <div>
-        <div style="width:28mm;height:3px;background:rgba(255,255,255,0.5);margin-bottom:5mm;border-radius:2px"></div>
-        <div style="font-size:8pt;color:rgba(255,255,255,0.65);letter-spacing:2px;text-transform:uppercase;margin-bottom:9mm">The Experts in Pest Control</div>
-        <div style="font-size:21pt;font-weight:700;color:#fff;line-height:1.2;margin-bottom:3mm">Rapport d'audit nuisibles</div>
-        <div style="font-size:13pt;color:rgba(255,255,255,0.9);margin-bottom:8mm">${esc(insp.clientName)}</div>
-        <div style="font-size:9pt;color:rgba(255,255,255,0.6);margin-bottom:2mm">Date d'édition</div>
-        <div style="font-size:11pt;color:#fff;font-weight:600;margin-bottom:3mm">${fmt(insp.date)}</div>
-        <div style="font-size:9pt;color:rgba(255,255,255,0.8)">${esc(insp.auditor)}</div>
-        ${insp.clientAddress?`<div style="font-size:8pt;color:rgba(255,255,255,0.55);margin-top:2mm">${esc(insp.clientAddress)}</div>`:""}
+        <div style="font-size:56pt;font-weight:900;color:#fff;line-height:1;letter-spacing:-2px;margin-bottom:6mm">Rentokil</div>
+        <div style="width:32mm;height:3px;background:rgba(255,255,255,0.4);border-radius:2px;margin-bottom:4mm"></div>
+        <div style="font-size:9pt;color:rgba(255,255,255,0.55);letter-spacing:3px;text-transform:uppercase">The Experts in Pest Control</div>
       </div>
-      <div style="font-size:7pt;color:rgba(255,255,255,0.3)">Document non officiel · Usage interne Rentokil</div>
-    </div>
-    <div style="width:45%;background:#fff;padding:10mm 12mm;display:flex;flex-direction:column;justify-content:space-between;border-left:4px solid ${RED}">
       <div>
-        <div style="font-size:34pt;font-weight:900;color:${RED};line-height:1;white-space:nowrap;letter-spacing:-1px;margin-bottom:2mm">Rentokil</div>
-        <div style="height:2px;background:${RED};margin-bottom:7mm"></div>
-      </div>
-      <table style="width:100%;border-collapse:collapse;font-size:9.5pt">
-        <tr><td style="padding:5px 0;border-bottom:1px solid #eee;color:${RED};font-weight:700;width:40%">Client</td>
-            <td style="padding:5px 0;border-bottom:1px solid #eee;font-weight:600">${esc(insp.clientName)}</td></tr>
-        ${insp.clientAddress?`<tr><td style="padding:5px 0;border-bottom:1px solid #eee;color:${RED};font-weight:700">Adresse</td>
-            <td style="padding:5px 0;border-bottom:1px solid #eee;color:#555">${esc(insp.clientAddress)}</td></tr>`:""}
-        <tr><td style="padding:5px 0;border-bottom:1px solid #eee;color:${RED};font-weight:700">Date</td>
-            <td style="padding:5px 0;border-bottom:1px solid #eee">${fmt(insp.date)}</td></tr>
-        <tr><td style="padding:5px 0;border-bottom:1px solid #eee;color:${RED};font-weight:700">Auditeur</td>
-            <td style="padding:5px 0;border-bottom:1px solid #eee">${esc(insp.auditor)}</td></tr>
-        <tr><td style="padding:5px 0;color:${RED};font-weight:700">Nb constats</td>
-            <td style="padding:5px 0;font-size:22pt;font-weight:900;color:${RED};line-height:1">${C.length}</td></tr>
-      </table>
-      <div style="border-top:1px solid #eee;padding-top:4mm">
-        <div style="font-size:7pt;color:#bbb;text-transform:uppercase;letter-spacing:1px;margin-bottom:3mm">Services Rentokil Initial</div>
-        <div style="display:flex;flex-wrap:wrap;gap:4px">
-          ${["Dératisation","Désinsectisation","Désinfection","Oiseaux","IPS","Audit"].map(s=>
-            `<span style="background:#fafafa;border:1px solid #eee;padding:2px 8px;border-radius:3px;font-size:7.5pt;color:#555">${s}</span>`
-          ).join("")}
+        <div style="font-size:9pt;color:rgba(255,255,255,0.5);letter-spacing:2px;text-transform:uppercase;margin-bottom:4mm">Rapport d'audit nuisibles</div>
+        <div style="font-size:28pt;font-weight:800;color:#fff;line-height:1.15;margin-bottom:5mm">${esc(insp.clientName)}</div>
+        ${insp.clientAddress?`<div style="font-size:10pt;color:rgba(255,255,255,0.65);margin-bottom:5mm">📍 ${esc(insp.clientAddress)}</div>`:""}
+        <div style="display:flex;gap:10mm;margin-top:4mm">
+          <div>
+            <div style="font-size:8pt;color:rgba(255,255,255,0.45);margin-bottom:1mm">Date</div>
+            <div style="font-size:12pt;font-weight:700;color:#fff">${fmt(insp.date)}</div>
+          </div>
+          <div>
+            <div style="font-size:8pt;color:rgba(255,255,255,0.45);margin-bottom:1mm">Auditeur</div>
+            <div style="font-size:12pt;font-weight:700;color:#fff">${esc(insp.auditor)}</div>
+          </div>
+          <div>
+            <div style="font-size:8pt;color:rgba(255,255,255,0.45);margin-bottom:1mm">Constats</div>
+            <div style="font-size:28pt;font-weight:900;color:#fff;line-height:1">${C.length}</div>
+          </div>
         </div>
+      </div>
+      <div style="font-size:7pt;color:rgba(255,255,255,0.25)">Document non officiel · Usage interne Rentokil</div>
+    </div>
+    <div style="width:44%;background:rgba(0,0,0,0.12);display:flex;flex-direction:column;justify-content:center;align-items:center;gap:4mm;padding:10mm">
+      ${Object.entries(byType).map(([t,n])=>{const ti=TYPES[t]||{e:"?",c:"#fff"};return`
+        <div style="width:100%;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.2);border-radius:10px;padding:4mm 6mm;display:flex;align-items:center;gap:5mm">
+          <span style="font-size:20pt">${ti.e}</span>
+          <div style="flex:1">
+            <div style="font-size:10pt;font-weight:700;color:#fff">${esc(t)}</div>
+            <div style="font-size:8pt;color:rgba(255,255,255,0.6)">${n} constat${n>1?"s":""}</div>
+          </div>
+          <div style="font-size:22pt;font-weight:900;color:rgba(255,255,255,0.9)">${n}</div>
+        </div>`}).join("")}
+      <div style="width:100%;border-top:1px solid rgba(255,255,255,0.15);padding-top:3mm;margin-top:2mm">
+        ${PRIOS.map((p,i)=>{const n=C.filter(c=>c.priority===i).length;return`
+          <div style="display:flex;align-items:center;gap:5mm;padding:1.5mm 0">
+            <div style="width:8px;height:8px;border-radius:50%;background:${p.c};flex-shrink:0"></div>
+            <div style="font-size:8pt;color:rgba(255,255,255,0.7);flex:1">${p.l}</div>
+            <div style="font-size:12pt;font-weight:700;color:#fff">${n}</div>
+          </div>`}).join("")}
       </div>
     </div>
   </div>`;sn++;
 
+  // PAGE 2 — SYNTHÈSE (sans "Rentokil" dans le header)
   const s2=`
   <div style="width:297mm;height:210mm;display:flex;flex-direction:column;page-break-after:always;overflow:hidden;background:#fff;font-family:Arial,sans-serif">
-    <div style="background:${NAVY};padding:5mm 10mm;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
+    <div style="background:${NAVY};padding:5mm 10mm;display:flex;align-items:center;flex-shrink:0">
       <span style="font-size:14pt;font-weight:700;color:#fff">Synthèse de l'inspection</span>
-      <span style="font-size:13pt;font-weight:900;color:#fff;white-space:nowrap">Rentokil</span>
     </div>
     <div style="flex:1;padding:6mm 10mm;display:flex;gap:8mm">
       <div style="flex:1">
@@ -877,6 +1185,7 @@ function generateReport(insp,constats,conclusion){
     ${foot(esc(insp.clientName)+" — Synthèse")}
   </div>`;
 
+  // PAGES CONSTATS (sans "Rentokil" dans le header)
   const sC=C.map((c,idx)=>{
     const t=TYPES[c.type]||{e:"?",c:"#666"};
     const pr=PRIOS[c.priority]||PRIOS[0];
@@ -899,9 +1208,8 @@ function generateReport(insp,constats,conclusion){
           ${c.species?`<span style="color:rgba(255,255,255,0.45);font-size:8pt">(${esc(c.species)})</span>`:""}
           <span style="color:rgba(255,255,255,0.4);font-size:8pt;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">📍 ${esc(c.planName||"")}</span>
         </div>
-        <div style="display:flex;align-items:center;gap:10px;flex-shrink:0">
+        <div style="flex-shrink:0">
           <span style="background:${pCol[c.priority]||pCol[0]};color:#fff;padding:2px 10px;border-radius:10px;font-size:8pt;font-weight:600;white-space:nowrap">${pr.e} ${esc(pr.l)}</span>
-          <span style="font-size:11pt;font-weight:900;color:#fff;white-space:nowrap">Rentokil</span>
         </div>
       </div>
       <div style="display:flex;gap:2px;background:#444;height:120mm;flex-shrink:0">
@@ -929,11 +1237,11 @@ function generateReport(insp,constats,conclusion){
     </div>`;
   }).join("");
 
+  // PAGE CONCLUSION (sans "Rentokil" dans le header)
   const sConcl=C.length>0?`
   <div style="width:297mm;height:210mm;display:flex;flex-direction:column;page-break-after:always;overflow:hidden;background:#fff;font-family:Arial,sans-serif">
-    <div style="background:${NAVY};padding:5mm 10mm;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
+    <div style="background:${NAVY};padding:5mm 10mm;display:flex;align-items:center;flex-shrink:0">
       <span style="font-size:14pt;font-weight:700;color:#fff">Commentaires — Remarques</span>
-      <span style="font-size:13pt;font-weight:900;color:#fff;white-space:nowrap">Rentokil</span>
     </div>
     <div style="flex:1;display:flex;overflow:hidden">
       <div style="width:57%;padding:6mm 8mm;border-right:1px solid #eee;overflow:hidden;display:flex;flex-direction:column">
@@ -965,20 +1273,19 @@ function generateReport(insp,constats,conclusion){
     ${foot(esc(insp.clientName)+" — Conclusion")}
   </div>`:"";
 
+  // PAGE BACK COVER
   const sBck=`
-  <div style="width:297mm;height:210mm;display:flex;overflow:hidden;font-family:Arial,sans-serif">
-    <div style="width:55%;background:${RED};padding:12mm;display:flex;flex-direction:column;justify-content:space-between">
-      <div style="font-size:44pt;font-weight:900;color:#fff;line-height:1;white-space:nowrap;letter-spacing:-1px">Rentokil</div>
+  <div style="width:297mm;height:210mm;display:flex;overflow:hidden;font-family:Arial,sans-serif;background:${RED}">
+    <div style="flex:1;padding:12mm;display:flex;flex-direction:column;justify-content:space-between">
+      <div style="font-size:44pt;font-weight:900;color:#fff;line-height:1;letter-spacing:-1px">Rentokil</div>
       <div>
         <div style="font-size:22pt;font-weight:700;color:#fff;margin-bottom:4mm">Fin du rapport</div>
         <div style="font-size:9pt;color:rgba(255,255,255,0.7);line-height:1.8">${esc(insp.clientName)}<br>${fmt(insp.date)}<br>${esc(insp.auditor)}</div>
       </div>
-      <div style="font-size:7pt;color:rgba(255,255,255,0.3)">Document non officiel · Usage interne · ${fmt(new Date())}</div>
+      <div style="font-size:7pt;color:rgba(255,255,255,0.25)">Document non officiel · Usage interne · ${fmt(new Date())}</div>
     </div>
-    <div style="width:45%;background:#fff;border-left:4px solid ${RED};display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5mm">
-      <div style="font-size:36pt;font-weight:900;color:${RED};line-height:1;white-space:nowrap;letter-spacing:-1px">Rentokil</div>
-      <div style="width:40mm;height:2px;background:${RED};border-radius:2px"></div>
-      <div style="font-size:9pt;color:#666;text-align:center">The Experts in Pest Control</div>
+    <div style="width:45%;background:rgba(0,0,0,0.12);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5mm">
+      <div style="font-size:9pt;color:rgba(255,255,255,0.6);text-align:center;letter-spacing:2px;text-transform:uppercase">The Experts in Pest Control</div>
     </div>
   </div>`;
 
@@ -1001,15 +1308,14 @@ ${s1}${s2}${sC}${sConcl}${sBck}
   else alert("Autorisez les popups pour générer le rapport.");
 }
 
-// Handler global sécurisé pour le bouton de l'historique d'accueil (évite les conflits d'échappement de chaînes)
 window.generateReportTarget = function(id) {
   const i = S.inspections.find(x => x.id === id);
   if (i) generateReport(i, i.constats || [], i.conclusion || "");
 };
 
-/* CONFIGURATION INTERNE GENERIQUE DU MANIFEST PWA */
+// PWA manifest
 const manifest={name:"Audit Nuisibles Rentokil",short_name:"Inspection",start_url:"./",
-  display:"standalone",background_color:"#ffffff",theme_color:"#e8291c",
+  display:"standalone",background_color:"#e8291c",theme_color:"#e8291c",
   icons:[{src:"data:image/svg+xml,"+encodeURIComponent(
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="20" fill="#e8291c"/><text y="62" x="50" text-anchor="middle" font-size="22" font-weight="900" font-family="Arial" fill="white">Rent</text><text y="85" x="50" text-anchor="middle" font-size="22" font-weight="900" font-family="Arial" fill="white">okil</text></svg>'),
     sizes:"512x512",type:"image/svg+xml",purpose:"any maskable"}]};
@@ -1017,10 +1323,7 @@ const mb=new Blob([JSON.stringify(manifest)],{type:"application/manifest+json"})
 const ml=document.createElement("link");ml.rel="manifest";ml.href=URL.createObjectURL(mb);
 document.head.appendChild(ml);
 
-// Point d'entrée initial
-document.addEventListener("DOMContentLoaded", () => {
-  nav("p-home");
-});
+document.addEventListener("DOMContentLoaded", () => { nav("p-home"); });
 </script>
 </body>
 </html>
