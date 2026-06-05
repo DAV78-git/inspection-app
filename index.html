@@ -988,51 +988,47 @@ function capturePlanSnapshot(plan, x, y, type) {
   return new Promise(res => {
     const img = new Image();
     img.onload = () => {
-      const OUT_W = 600, OUT_H = 420;
+      // Stratégie : image ENTIÈRE redimensionnée dans le canvas de sortie.
+      // Le marqueur est calculé en % → toujours au bon endroit, même aux bords.
+      const OUT_W = 700, OUT_H = 460;
       const canvas = document.createElement("canvas");
       canvas.width = OUT_W; canvas.height = OUT_H;
       const ctx = canvas.getContext("2d");
 
-      const nW = img.naturalWidth;
-      const nH = img.naturalHeight;
+      // Dessin de l'image complète dans le canvas (letterbox si ratio différent)
+      const imgRatio = img.naturalWidth / img.naturalHeight;
+      const canRatio = OUT_W / OUT_H;
+      let drawW, drawH, drawX, drawY;
+      if (imgRatio > canRatio) {
+        // Image plus large : on cale sur la largeur
+        drawW = OUT_W; drawH = OUT_W / imgRatio;
+        drawX = 0;     drawY = (OUT_H - drawH) / 2;
+      } else {
+        // Image plus haute : on cale sur la hauteur
+        drawH = OUT_H; drawW = OUT_H * imgRatio;
+        drawX = (OUT_W - drawW) / 2; drawY = 0;
+      }
+      // Fond noir pour les bandes letterbox
+      ctx.fillStyle = "#1a2535";
+      ctx.fillRect(0, 0, OUT_W, OUT_H);
+      ctx.drawImage(img, drawX, drawY, drawW, drawH);
 
-      // 1. Position exacte du constat sur l'image source (pixels)
-      const ptX = nW * x / 100;
-      const ptY = nH * y / 100;
+      // Position du marqueur : x/y sont en % de l'image → on mappe sur la zone dessinée
+      const markerX = drawX + (x / 100) * drawW;
+      const markerY = drawY + (y / 100) * drawH;
 
-      // 2. Taille de la fenêtre de crop (zoom 50%)
-      const cropW = nW * 0.50;
-      const cropH = nH * 0.50;
-
-      // 3. Crop idéalement centré sur le point
-      let sx = ptX - cropW / 2;
-      let sy = ptY - cropH / 2;
-
-      // 4. Clamp : on ne dépasse pas les bords de l'image
-      sx = Math.max(0, Math.min(sx, nW - cropW));
-      sy = Math.max(0, Math.min(sy, nH - cropH));
-
-      // 5. Dessin du crop dans le canvas de sortie
-      ctx.drawImage(img, sx, sy, cropW, cropH, 0, 0, OUT_W, OUT_H);
-
-      // 6. Position du marqueur dans le canvas de sortie
-      //    On recalcule à partir de la position réelle du crop (sx/sy),
-      //    pas du centre idéal — c'est le correctif clé.
-      const markerX = (ptX - sx) / cropW * OUT_W;
-      const markerY = (ptY - sy) / cropH * OUT_H;
-
-      // 7. Dessin du marqueur
+      // Dessin du marqueur
       const t = TYPES[type] || {c:"#e8291c"};
 
       // Halo blanc translucide
       ctx.beginPath();
-      ctx.arc(markerX, markerY, 24, 0, Math.PI * 2);
+      ctx.arc(markerX, markerY, 26, 0, Math.PI * 2);
       ctx.fillStyle = "rgba(255,255,255,0.35)";
       ctx.fill();
 
       // Disque coloré
       ctx.beginPath();
-      ctx.arc(markerX, markerY, 14, 0, Math.PI * 2);
+      ctx.arc(markerX, markerY, 16, 0, Math.PI * 2);
       ctx.fillStyle = t.c;
       ctx.fill();
       ctx.strokeStyle = "#fff";
