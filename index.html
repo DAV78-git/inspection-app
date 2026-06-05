@@ -802,19 +802,40 @@ function showPlan(plan) {
   wrap.style.display="block";
   const img = document.getElementById("map-img");
   img.src = plan.image;
-  // Tap sur l'image directement : offsetX/offsetY toujours relatifs
-  // à l'élément cliqué, indépendamment du scroll de la page
-  img.onclick = onMapTap;
-  wrap.onclick = null;
+  // Supprimer les anciens listeners
+  img.replaceWith(img.cloneNode(true));
+  const freshImg = document.getElementById("map-img");
+  // Touch ET click pour couvrir tous les cas mobile/desktop
+  freshImg.addEventListener("touchend", onMapTap, {passive: false});
+  freshImg.addEventListener("click",    onMapTap, false);
+  document.getElementById("map-wrap").onclick = null;
   renderMarkers();
 }
 function onMapTap(e) {
+  e.preventDefault();
   e.stopPropagation();
-  const img = e.currentTarget;
-  const x = parseFloat((e.offsetX / img.offsetWidth  * 100).toFixed(2));
-  const y = parseFloat((e.offsetY / img.offsetHeight * 100).toFixed(2));
-  if (x < 0 || x > 100 || y < 0 || y > 100) return;
-  S.pendPt = { x, y };
+  const img = document.getElementById("map-img");
+  const rect = img.getBoundingClientRect();
+  // Récupérer les coordonnées selon le type d'événement
+  let clientX, clientY;
+  if (e.type === "touchend" && e.changedTouches && e.changedTouches.length > 0) {
+    clientX = e.changedTouches[0].clientX;
+    clientY = e.changedTouches[0].clientY;
+  } else if (e.type === "click") {
+    // Si touchend a déjà traité cet événement, ignorer le click fantôme
+    if (e._fromTouch) return;
+    clientX = e.clientX;
+    clientY = e.clientY;
+  } else {
+    return;
+  }
+  // rect est relatif au viewport — c'est correct car on utilise clientX/Y
+  const x = parseFloat(((clientX - rect.left) / rect.width  * 100).toFixed(2));
+  const y = parseFloat(((clientY - rect.top)  / rect.height * 100).toFixed(2));
+  // Sécurité : valeurs dans [0,100]
+  const cx = Math.max(0, Math.min(100, x));
+  const cy = Math.max(0, Math.min(100, y));
+  S.pendPt = { x: cx, y: cy };
   openTypeModal();
 }
 function renderMarkers() {
@@ -1011,14 +1032,14 @@ function capturePlanSnapshot(plan, x, y, type) {
       // Image complète, redimensionnée
       ctx.drawImage(img, 0, 0, OUT_W, OUT_H);
 
-      // Position du marqueur : x/y sont en % → mapping direct, toujours dans l'image
-      const markerX = (x / 100) * OUT_W;
-      const markerY = (y / 100) * OUT_H;
-
+      // Position du marqueur : x/y sont en % → mapping direct
       const t = TYPES[type] || {c:"#e8291c"};
-
       // Taille du marqueur proportionnelle à l'image (min 12px, max 28px)
       const r = Math.max(12, Math.min(28, OUT_W * 0.025));
+      // Clamper le CENTRE du marqueur pour qu'il reste entièrement dans l'image
+      const margin = r * 1.7 + 2; // halo + sécurité
+      const markerX = Math.max(margin, Math.min((x / 100) * OUT_W, OUT_W - margin));
+      const markerY = Math.max(margin, Math.min((y / 100) * OUT_H, OUT_H - margin));
 
       // Halo blanc translucide
       ctx.beginPath();
