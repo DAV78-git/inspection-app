@@ -800,16 +800,21 @@ function showPlan(plan) {
   document.getElementById("ia-no-plan").style.display="none";
   const wrap = document.getElementById("map-wrap");
   wrap.style.display="block";
-  document.getElementById("map-img").src=plan.image;
-  wrap.onclick=onMapTap; renderMarkers();
+  const img = document.getElementById("map-img");
+  img.src = plan.image;
+  // Tap sur l'image directement : offsetX/offsetY toujours relatifs
+  // à l'élément cliqué, indépendamment du scroll de la page
+  img.onclick = onMapTap;
+  wrap.onclick = null;
+  renderMarkers();
 }
 function onMapTap(e) {
-  const img = document.getElementById("map-img");
-  const r   = img.getBoundingClientRect();
-  S.pendPt  = {
-    x: parseFloat(((e.clientX-r.left)/r.width *100).toFixed(2)),
-    y: parseFloat(((e.clientY-r.top) /r.height*100).toFixed(2))
-  };
+  e.stopPropagation();
+  const img = e.currentTarget;
+  const x = parseFloat((e.offsetX / img.offsetWidth  * 100).toFixed(2));
+  const y = parseFloat((e.offsetY / img.offsetHeight * 100).toFixed(2));
+  if (x < 0 || x > 100 || y < 0 || y > 100) return;
+  S.pendPt = { x, y };
   openTypeModal();
 }
 function renderMarkers() {
