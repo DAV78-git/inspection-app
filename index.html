@@ -325,52 +325,107 @@ const PRIOS = [
 ];
 
 /* ============================================================
-   ÉTAT
+   ÉTAT (en mémoire) — persisté dans IndexedDB
    ============================================================ */
 let S = {
-  clients:     safeGet("clients",     "[]"),
-  plans:       safeGet("plans",       "{}"),
-  inspections: safeGet("inspections", "[]"),
-  activeInsp:  safeGet("activeInsp",  "null"),
-  constats:    safeGet("constats",    "[]"),
+  clients: [], plans: {}, inspections: [], activeInsp: null, constats: [],
   currentClientId: null, selPlanId: null, pendPt: null,
   editConstatId: null, cstatType: null, fromInsp: false
 };
 
 /* ============================================================
-   LOCALSTORAGE ROBUSTE
+   STOCKAGE INDEXEDDB
+   Base "rentokil_audit", un object store "kv" (clé/valeur).
+   Capacité : plusieurs centaines de Mo (vs 5 Mo localStorage).
+   On garde l'état complet en mémoire (S) et on persiste les
+   clés modifiées de façon asynchrone.
    ============================================================ */
-function safeGet(key, def) {
-  try { return JSON.parse(localStorage.getItem(key) || def); }
-  catch(e) { return JSON.parse(def); }
-}
-function safePersist(key, value) {
-  try { localStorage.setItem(key, JSON.stringify(value)); return true; }
-  catch(e) {
-    if (e.name === 'QuotaExceededError' || e.code === 22) {
-      tryFreeStorage();
-      try { localStorage.setItem(key, JSON.stringify(value)); toast("⚠️ Stockage libéré automatiquement"); return true; }
-      catch(e2) { showStorageError(); return false; }
-    }
-    return false;
-  }
-}
-function tryFreeStorage() {
-  S.inspections.filter(i => i.status === 'done').forEach(insp => {
-    if (insp.constats) insp.constats = insp.constats.map(c => ({...c, photos:[], locationSnap:null}));
+const DB_NAME = "rentokil_audit";
+const DB_STORE = "kv";
+const DB_VERSION = 1;
+let _db = null;
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = e => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains(DB_STORE)) db.createObjectStore(DB_STORE);
+    };
+    req.onsuccess = e => { _db = e.target.result; resolve(_db); };
+    req.onerror   = e => reject(e.target.error);
   });
-  try { localStorage.setItem('inspections', JSON.stringify(S.inspections)); } catch(e) {}
 }
-function showStorageError() {
-  alert(`⚠️ Stockage plein !\n\n• Exportez une sauvegarde JSON\n• Supprimez d'anciennes inspections\n• Réduisez le nombre de photos`);
+
+function idbGet(key) {
+  return new Promise((resolve) => {
+    if (!_db) return resolve(null);
+    const tx = _db.transaction(DB_STORE, "readonly");
+    const req = tx.objectStore(DB_STORE).get(key);
+    req.onsuccess = () => resolve(req.result ?? null);
+    req.onerror   = () => resolve(null);
+  });
 }
-function getStorageUsed() {
-  let total = 0;
-  for (let k in localStorage) { if (localStorage.hasOwnProperty(k)) total += localStorage[k].length * 2; }
-  return (total / 1024 / 1024).toFixed(1);
+
+function idbSet(key, value) {
+  return new Promise((resolve) => {
+    if (!_db) return resolve(false);
+    const tx = _db.transaction(DB_STORE, "readwrite");
+    tx.objectStore(DB_STORE).put(value, key);
+    tx.oncomplete = () => resolve(true);
+    tx.onerror    = () => { showStorageError(); resolve(false); };
+  });
 }
+
+// Charge tout l'état depuis IndexedDB au démarrage
+async function loadState() {
+  await openDB();
+  // Migration éventuelle depuis l'ancien localStorage (one-shot)
+  await migrateFromLocalStorage();
+  S.clients     = (await idbGet("clients"))     || [];
+  S.plans       = (await idbGet("plans"))       || {};
+  S.inspections = (await idbGet("inspections")) || [];
+  S.activeInsp  = (await idbGet("activeInsp"))  || null;
+  S.constats    = (await idbGet("constats"))    || [];
+}
+
+async function migrateFromLocalStorage() {
+  try {
+    if (localStorage.getItem("_migrated_idb") === "1") return;
+    const keys = ["clients","plans","inspections","activeInsp","constats"];
+    let found = false;
+    for (const k of keys) {
+      const raw = localStorage.getItem(k);
+      if (raw) {
+        found = true;
+        await idbSet(k, JSON.parse(raw));
+      }
+    }
+    localStorage.setItem("_migrated_idb", "1");
+    if (found) console.log("Migration localStorage → IndexedDB effectuée");
+  } catch(e) { /* silencieux */ }
+}
+
+// Persiste les clés indiquées (asynchrone, non bloquant)
 function persist(keys) {
-  (keys || ["clients","plans","inspections","activeInsp","constats"]).forEach(k => safePersist(k, S[k]));
+  (keys || ["clients","plans","inspections","activeInsp","constats"]).forEach(k => {
+    idbSet(k, S[k]);
+  });
+}
+
+function showStorageError() {
+  alert(`⚠️ Erreur de stockage\n\n• Exportez une sauvegarde JSON par sécurité\n• Vérifiez l'espace disponible sur l'appareil`);
+}
+
+// Estimation de l'espace utilisé via l'API Storage (asynchrone)
+async function getStorageUsedAsync() {
+  try {
+    if (navigator.storage && navigator.storage.estimate) {
+      const est = await navigator.storage.estimate();
+      return (est.usage / 1024 / 1024).toFixed(1);
+    }
+  } catch(e) {}
+  return "?";
 }
 
 /* ============================================================
@@ -401,29 +456,19 @@ function triggerAutoSaveDot() {
 }
 
 function autoSaveToStorage() {
-  // Sauvegarde dans localStorage (déjà fait par persist),
-  // on persiste aussi une clé "autosave_snapshot" avec timestamp
+  // Snapshot complet dans IndexedDB avec horodatage.
   const payload = autoSavePayload();
-  const str = JSON.stringify(payload);
-  const hash = str.length + "_" + (S.constats.length);
+  const hash = JSON.stringify(payload).length + "_" + S.constats.length;
   if (hash === _lastAutoSaveHash) return; // rien de changé
   _lastAutoSaveHash = hash;
-  try {
-    localStorage.setItem("autosave_snapshot", str);
-    localStorage.setItem("autosave_ts", new Date().toISOString());
-    triggerAutoSaveDot();
-  } catch(e) {
-    // Quota : on sauvegarde sans les photos
-    try {
-      const light = {...payload};
-      if (light.activeInsp && light.constats) {
-        light.constats = light.constats.map(c => ({...c, locationSnap: null}));
-      }
-      localStorage.setItem("autosave_snapshot", JSON.stringify(light));
-      localStorage.setItem("autosave_ts", new Date().toISOString());
-      triggerAutoSaveDot();
-    } catch(e2) {}
-  }
+  idbSet("autosave_snapshot", payload);
+  idbSet("autosave_ts", new Date().toISOString());
+  triggerAutoSaveDot();
+}
+
+async function getLastAutoSaveDateAsync() {
+  const ts = await idbGet("autosave_ts");
+  return ts ? new Date(ts).toLocaleString("fr-FR") : null;
 }
 
 function startAutoSave() {
@@ -433,11 +478,7 @@ function startAutoSave() {
   }, 30000); // toutes les 30 secondes
 }
 
-function getLastAutoSaveDate() {
-  const ts = localStorage.getItem("autosave_ts");
-  if (!ts) return null;
-  return new Date(ts).toLocaleString("fr-FR");
-}
+
 
 /* ============================================================
    UTILITAIRES
@@ -499,24 +540,20 @@ function renderHome() {
   document.getElementById("stat-inspections").textContent = S.inspections.filter(i => i.status==="done").length;
   document.getElementById("stat-constats").textContent    = totalConstats;
 
-  const si = parseFloat(getStorageUsed());
-  const lastSave = getLastAutoSaveDate();
-  const storWarn = si > 3.5
-    ? `<div style="background:#fef3c7;border:1px solid #fbbf24;border-radius:10px;padding:10px 12px;font-size:12px;color:#92400e;margin-bottom:12px">
-        ⚠️ Stockage : ${si} Mo utilisés. <span style="text-decoration:underline;cursor:pointer" onclick="doExport()">Exporter une sauvegarde</span>
-       </div>` : '';
-  const saveInfo = lastSave
-    ? `<div style="font-size:11px;color:#6b7280;text-align:right;margin-bottom:10px">💾 Dernière sauvegarde auto : ${lastSave}</div>` : '';
-
   const ha = document.getElementById("home-active");
   if (S.activeInsp) {
-    ha.innerHTML = storWarn + saveInfo + `<div class="card" style="border:2px solid #16a34a;cursor:pointer;margin-bottom:12px" onclick="nav('p-insp-active')">
+    ha.innerHTML = `<div id="home-saveinfo"></div><div class="card" style="border:2px solid #16a34a;cursor:pointer;margin-bottom:12px" onclick="nav('p-insp-active')">
       <div style="font-size:11px;color:#16a34a;font-weight:700">● EN COURS</div>
       <div style="font-weight:700;font-size:15px;margin-top:2px">${esc(S.activeInsp.clientName)}</div>
       <div style="font-size:12px;color:#6b7280;margin-top:2px">${esc(S.activeInsp.auditor)} · ${S.constats.length} constat(s) · ${fmt(S.activeInsp.date)}</div>
       <div style="font-size:12px;color:#16a34a;margin-top:6px">Reprendre →</div>
     </div>`;
-  } else { ha.innerHTML = storWarn + saveInfo; }
+  } else { ha.innerHTML = `<div id="home-saveinfo"></div>`; }
+  // Info sauvegarde + stockage (asynchrone, ne bloque pas le rendu)
+  getLastAutoSaveDateAsync().then(lastSave => {
+    const el = document.getElementById("home-saveinfo");
+    if (el && lastSave) el.innerHTML = `<div style="font-size:11px;color:#6b7280;text-align:right;margin-bottom:10px">💾 Dernière sauvegarde auto : ${lastSave}</div>`;
+  });
 
   const hh = document.getElementById("home-history");
   const done = S.inspections.filter(i => i.status==="done").sort((a,b) => b.date.localeCompare(a.date));
@@ -1010,65 +1047,70 @@ async function onConstatPhoto(i,input) {
       C'est ce recalcul qui manquait : sans lui, si le crop est
       décalé par le clamp, le marqueur est dessiné au mauvais endroit.
    ============================================================ */
-function capturePlanSnapshot(plan, x, y, type) {
-  return new Promise(res => {
-    const img = new Image();
-    img.onload = () => {
-      const nW = img.naturalWidth;
-      const nH = img.naturalHeight;
+async function capturePlanSnapshot(plan, x, y, type) {
+  // Chargement FIABLE de l'image avec decode() :
+  // garantit que l'image est entièrement décodée avant de dessiner,
+  // ce qui évite les snapshots vides (le bug du marqueur absent).
+  const img = new Image();
+  img.src = plan.image;
+  try {
+    await img.decode();
+  } catch (e) {
+    // Fallback : attendre onload classique si decode() échoue
+    await new Promise((resolve) => {
+      if (img.complete && img.naturalWidth) return resolve();
+      img.onload = resolve;
+      img.onerror = resolve;
+    });
+  }
 
-      // Canvas aux dimensions exactes de l'image source
-      // (pas de letterbox, pas de crop, pas de clamp)
-      // On redimensionne juste pour ne pas dépasser 800px de large
-      const MAX = 800;
-      const scale = nW > MAX ? MAX / nW : 1;
-      const OUT_W = Math.round(nW * scale);
-      const OUT_H = Math.round(nH * scale);
+  const nW = img.naturalWidth;
+  const nH = img.naturalHeight;
+  if (!nW || !nH) return null; // image non chargée
 
-      const canvas = document.createElement("canvas");
-      canvas.width = OUT_W; canvas.height = OUT_H;
-      const ctx = canvas.getContext("2d");
+  // Canvas au ratio exact de l'image source, max 900px de large
+  const MAX = 900;
+  const scale = nW > MAX ? MAX / nW : 1;
+  const OUT_W = Math.round(nW * scale);
+  const OUT_H = Math.round(nH * scale);
 
-      // Image complète, redimensionnée
-      ctx.drawImage(img, 0, 0, OUT_W, OUT_H);
+  const canvas = document.createElement("canvas");
+  canvas.width = OUT_W; canvas.height = OUT_H;
+  const ctx = canvas.getContext("2d");
 
-      // Position du marqueur : x/y sont en % → mapping direct
-      const t = TYPES[type] || {c:"#e8291c"};
-      // Taille du marqueur proportionnelle à l'image (min 12px, max 28px)
-      const r = Math.max(12, Math.min(28, OUT_W * 0.025));
-      // Clamper le CENTRE du marqueur pour qu'il reste entièrement dans l'image
-      const margin = r * 1.7 + 2; // halo + sécurité
-      const markerX = Math.max(margin, Math.min((x / 100) * OUT_W, OUT_W - margin));
-      const markerY = Math.max(margin, Math.min((y / 100) * OUT_H, OUT_H - margin));
+  // Image complète
+  ctx.drawImage(img, 0, 0, OUT_W, OUT_H);
 
-      // Halo blanc translucide
-      ctx.beginPath();
-      ctx.arc(markerX, markerY, r * 1.7, 0, Math.PI * 2);
-      ctx.fillStyle = "rgba(255,255,255,0.35)";
-      ctx.fill();
+  // Marqueur
+  const t = TYPES[type] || { c: "#e8291c" };
+  const r = Math.max(12, Math.min(30, OUT_W * 0.028));
+  const margin = r * 1.7 + 2;
+  // Position en % → pixels, puis clamp pour que le marqueur reste entier
+  const markerX = Math.max(margin, Math.min((x / 100) * OUT_W, OUT_W - margin));
+  const markerY = Math.max(margin, Math.min((y / 100) * OUT_H, OUT_H - margin));
 
-      // Disque coloré
-      ctx.beginPath();
-      ctx.arc(markerX, markerY, r, 0, Math.PI * 2);
-      ctx.fillStyle = t.c;
-      ctx.fill();
-      ctx.strokeStyle = "#fff";
-      ctx.lineWidth = Math.max(2, r * 0.2);
-      ctx.stroke();
+  // Halo
+  ctx.beginPath();
+  ctx.arc(markerX, markerY, r * 1.7, 0, Math.PI * 2);
+  ctx.fillStyle = "rgba(255,255,255,0.4)";
+  ctx.fill();
+  // Disque
+  ctx.beginPath();
+  ctx.arc(markerX, markerY, r, 0, Math.PI * 2);
+  ctx.fillStyle = t.c;
+  ctx.fill();
+  ctx.strokeStyle = "#fff";
+  ctx.lineWidth = Math.max(2, r * 0.22);
+  ctx.stroke();
+  // Croix
+  const cr = r * 0.5;
+  ctx.strokeStyle = "#fff";
+  ctx.lineWidth = Math.max(1.5, r * 0.16);
+  ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(markerX - cr, markerY); ctx.lineTo(markerX + cr, markerY); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(markerX, markerY - cr); ctx.lineTo(markerX, markerY + cr); ctx.stroke();
 
-      // Croix blanche
-      const cr = r * 0.5;
-      ctx.strokeStyle = "#fff";
-      ctx.lineWidth = Math.max(1.5, r * 0.15);
-      ctx.lineCap = "round";
-      ctx.beginPath(); ctx.moveTo(markerX - cr, markerY); ctx.lineTo(markerX + cr, markerY); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(markerX, markerY - cr); ctx.lineTo(markerX, markerY + cr); ctx.stroke();
-
-      res(canvas.toDataURL("image/jpeg", 0.92));
-    };
-    img.onerror = () => res(null);
-    img.src = plan.image;
-  });
+  return canvas.toDataURL("image/jpeg", 0.9);
 }
 
 async function saveConstat() {
@@ -1324,7 +1366,14 @@ const mb = new Blob([JSON.stringify(manifest)],{type:"application/manifest+json"
 const ml = document.createElement("link"); ml.rel="manifest"; ml.href=URL.createObjectURL(mb);
 document.head.appendChild(ml);
 
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
+  // Charger l'état depuis IndexedDB AVANT le premier rendu
+  try {
+    await loadState();
+  } catch(e) {
+    console.error("Erreur chargement IndexedDB:", e);
+    alert("Erreur d'accès au stockage local. Vérifiez que le navigateur autorise le stockage (mode privé ?).");
+  }
   nav("p-home");
   startAutoSave(); // démarrer la boucle de sauvegarde dès le chargement
   // Sauvegarde sur fermeture/changement de page
