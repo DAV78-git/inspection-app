@@ -1249,9 +1249,11 @@ function generateReport(insp, constats, conclusion) {
 
   const sC = C.map((c,idx)=>{
     const t=TYPES[c.type]||{e:"?",c:"#666"}; const pr=PRIOS[c.priority]||PRIOS[0];
-    const ph=(img,lbl)=>img
-      ?`<div style="flex:1;position:relative;overflow:hidden;background:#111">
-          <img src="${img}" alt="${lbl}" style="width:100%;height:100%;object-fit:cover;display:block">
+    // fit = "contain" pour la localisation (plan entier visible, jamais rogné)
+    //       "cover"   pour les photos (remplissage esthétique)
+    const ph=(img,lbl,fit="cover")=>img
+      ?`<div style="flex:1;position:relative;overflow:hidden;background:#1a2535">
+          <img src="${img}" alt="${lbl}" style="width:100%;height:100%;object-fit:${fit};display:block">
           <div style="position:absolute;bottom:0;left:0;right:0;padding:5px 8px;background:linear-gradient(transparent,rgba(0,0,0,0.65))">
             <span style="font-size:8pt;color:#fff;font-weight:600;font-family:Arial">${lbl}</span>
           </div>
@@ -1273,7 +1275,7 @@ function generateReport(insp, constats, conclusion) {
         </div>
       </div>
       <div style="display:flex;gap:2px;background:#444;height:120mm;flex-shrink:0">
-        ${ph(c.locationSnap,"Localisation")}${ph(c.photos?.[0],"Photo 1")}${ph(c.photos?.[1],"Photo 2")}${ph(c.photos?.[2],"Photo 3")}
+        ${ph(c.locationSnap,"Localisation","contain")}${ph(c.photos?.[0],"Photo 1")}${ph(c.photos?.[1],"Photo 2")}${ph(c.photos?.[2],"Photo 3")}
       </div>
       <div style="flex:1;display:flex;border-top:3px solid #${RED};overflow:hidden">
         <div style="flex:1;padding:4mm 7mm;border-right:1px solid #eee;overflow:hidden">
