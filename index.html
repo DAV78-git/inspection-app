@@ -1339,17 +1339,47 @@ function generateReport(insp, constats, conclusion) {
     </div>
   </div>`;
 
+  const safeName = (insp.clientName || "rapport").replace(/[^a-zA-Z0-9]/g, "_");
+  const fileBase = `Rapport_${safeName}_${fmt(insp.date).replace(/\//g,"-")}`;
+
+  // Deux boutons dans le rapport :
+  //  - Imprimer / PDF : impression navigateur (Enregistrer au format PDF)
+  //  - Télécharger : enregistre un vrai fichier .html autonome (partage email/Drive OK)
   const html = `<!DOCTYPE html><html lang="fr"><head>
-<meta charset="UTF-8"><title>Rapport audit — ${esc(insp.clientName)}</title>
-<style>@page{size:297mm 210mm landscape;margin:0}*{box-sizing:border-box;margin:0;padding:0}body{background:#111;font-family:Arial,sans-serif}@media screen{body{padding:6mm}}@media print{body{background:#fff;padding:0}button{display:none!important}}</style>
+<meta charset="UTF-8"><title>${fileBase}</title>
+<style>@page{size:297mm 210mm landscape;margin:0}*{box-sizing:border-box;margin:0;padding:0}body{background:#111;font-family:Arial,sans-serif}@media screen{body{padding:6mm}}@media print{body{background:#fff;padding:0}.no-print{display:none!important}}</style>
 </head><body>
-<button onclick="window.print()" style="position:fixed;bottom:16px;right:16px;background:#e8291c;color:#fff;border:none;padding:12px 22px;border-radius:8px;cursor:pointer;font-size:14px;font-weight:700;box-shadow:0 2px 12px rgba(0,0,0,.4);z-index:999">🖨️ Imprimer / PDF</button>
+<div class="no-print" style="position:fixed;bottom:16px;right:16px;display:flex;gap:10px;z-index:999">
+  <button onclick="window.print()" style="background:#e8291c;color:#fff;border:none;padding:12px 22px;border-radius:8px;cursor:pointer;font-size:14px;font-weight:700;box-shadow:0 2px 12px rgba(0,0,0,.4)">🖨️ Imprimer / PDF</button>
+  <button onclick="dlReport()" style="background:#1a2535;color:#fff;border:none;padding:12px 22px;border-radius:8px;cursor:pointer;font-size:14px;font-weight:700;box-shadow:0 2px 12px rgba(0,0,0,.4)">⬇️ Télécharger</button>
+</div>
+<script>
+function dlReport(){
+  // Récupère le document complet et le propose comme vrai fichier .html
+  var content = "<!DOCTYPE html>" + document.documentElement.outerHTML;
+  var blob = new Blob([content], {type:"text/html"});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement("a");
+  a.href = url; a.download = "${fileBase}.html";
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
+}
+<\/script>
 ${s1}${s2}${sC}${sConcl}${sBck}
 </body></html>`;
 
-  const w = window.open("","_blank");
-  if (w) { w.document.write(html); w.document.close(); }
-  else alert("Autorisez les popups pour générer le rapport.");
+  // Création d'un Blob avec une VRAIE URL (corrige le bug about:blank)
+  const blob = new Blob([html], { type: "text/html" });
+  const url = URL.createObjectURL(blob);
+  const w = window.open(url, "_blank");
+  if (!w) {
+    // Popup bloquée : on télécharge directement le fichier
+    const a = document.createElement("a");
+    a.href = url; a.download = `${fileBase}.html`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    toast("Rapport téléchargé ✓ (autorisez les popups pour l'ouvrir directement)");
+  }
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 
 window.generateReportTarget = function(id) {
