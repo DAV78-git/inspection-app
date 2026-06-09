@@ -546,30 +546,56 @@ function renderHome() {
   document.getElementById("home-today").textContent =
     now.toLocaleDateString("fr-FR", {weekday:"long", year:"numeric", month:"long", day:"numeric"});
 
-  const totalConstats = S.inspections.reduce((a,i) => a+(i.constatsCount||0), 0)
-    + (S.activeInsp ? S.constats.length : 0);
+  // S'assurer que l'inspection ouverte est bien à jour dans la liste AVANT calculs
+  syncActiveToList();
+  const totalConstats = S.inspections.reduce((a,i) => a + (i.constats ? i.constats.length : (i.constatsCount||0)), 0);
   document.getElementById("stat-clients").textContent     = S.clients.length;
   document.getElementById("stat-inspections").textContent = S.inspections.filter(i => i.status==="done").length;
   document.getElementById("stat-constats").textContent    = totalConstats;
-
   const ha = document.getElementById("home-active");
-  if (S.activeInsp) {
-    ha.innerHTML = `<div id="home-saveinfo"></div><div class="card" style="border:2px solid #16a34a;cursor:pointer;margin-bottom:12px" onclick="nav('p-insp-active')">
-      <div style="font-size:11px;color:#16a34a;font-weight:700">● EN COURS</div>
-      <div style="font-weight:700;font-size:15px;margin-top:2px">${esc(S.activeInsp.clientName)}</div>
-      <div style="font-size:12px;color:#6b7280;margin-top:2px">${esc(S.activeInsp.auditor)} · ${S.constats.length} constat(s) · ${fmt(S.activeInsp.date)}</div>
-      <div style="font-size:12px;color:#16a34a;margin-top:6px">Reprendre →</div>
-    </div>`;
-  } else { ha.innerHTML = `<div id="home-saveinfo"></div>`; }
-  // Info sauvegarde + stockage (asynchrone, ne bloque pas le rendu)
-  getLastAutoSaveDateAsync().then(lastSave => {
+  const actives = S.inspections.filter(i => i.status === "active")
+                               .sort((a,b) => b.date.localeCompare(a.date));
+  let activeHtml = `<div id="home-saveinfo"></div>`;
+  if (actives.length) {
+    activeHtml += `<div class="home-section-title" style="margin-bottom:8px;color:#16a34a">● Inspections en cours (${actives.length})</div>`;
+    activeHtml += actives.map(i => {
+      const n = (i.constats ? i.constats.length : (i.constatsCount||0));
+      return `<div class="card" style="border:2px solid #16a34a;cursor:pointer;margin-bottom:8px" onclick="openInspection('${i.id}')">
+        <div style="font-weight:700;font-size:15px">${esc(i.clientName)}</div>
+        <div style="font-size:12px;color:#6b7280;margin-top:2px">${esc(i.auditor)} · ${n} constat(s) · ${fmt(i.date)}</div>
+        <div style="font-size:12px;color:#16a34a;margin-top:6px">Reprendre →</div>
+      </div>`;
+    }).join("");
+  }
+  ha.innerHTML = activeHtml;
+  // Info sauvegarde + état du stockage (asynchrone, ne bloque pas le rendu)
+  Promise.all([
+    getLastAutoSaveDateAsync(),
+    (navigator.storage && navigator.storage.persisted) ? navigator.storage.persisted() : Promise.resolve(null),
+    getStorageUsedAsync()
+  ]).then(([lastSave, persisted, usedMo]) => {
     const el = document.getElementById("home-saveinfo");
-    if (el && lastSave) el.innerHTML = `<div style="font-size:11px;color:#6b7280;text-align:right;margin-bottom:10px">💾 Dernière sauvegarde auto : ${lastSave}</div>`;
+    if (!el) return;
+    let html = "";
+    if (lastSave) html += `<div style="font-size:11px;color:#6b7280;text-align:right">💾 Dernière sauvegarde auto : ${lastSave}</div>`;
+    // Pastille état stockage persistant
+    let badge = "";
+    if (persisted === true) {
+      badge = `<span style="color:#16a34a">🔒 Stockage sécurisé</span>`;
+    } else if (persisted === false) {
+      badge = `<span style="color:#ca8a04">⚠️ Stockage non verrouillé — ajoutez l'appli à l'écran d'accueil</span>`;
+    }
+    if (badge || usedMo !== "?") {
+      html += `<div style="font-size:11px;color:#6b7280;text-align:right;margin-top:2px">${badge}${(usedMo!=="?")?` · ${usedMo} Mo utilisés`:""}</div>`;
+    }
+    if (html) html += `<div style="margin-bottom:10px"></div>`;
+    el.innerHTML = html;
   });
 
   const hh = document.getElementById("home-history");
   const done = S.inspections.filter(i => i.status==="done").sort((a,b) => b.date.localeCompare(a.date));
-  if (done.length===0 && S.clients.length===0 && !S.activeInsp) {
+  const anyActive = S.inspections.some(i => i.status==="active");
+  if (done.length===0 && S.clients.length===0 && !anyActive) {
     hh.innerHTML = `<div style="text-align:center;color:#9ca3af;padding:32px">
       <div style="font-size:40px;margin-bottom:8px">🏭</div>
       <div style="font-size:14px">Commencez par créer un client</div>
@@ -620,8 +646,7 @@ function doImport(input) {
 function reopenInspection(id) {
   const i = S.inspections.find(x => x.id===id); if (!i) return;
   if (!confirm(`Rouvrir "${i.clientName}" du ${fmt(i.date)} ?`)) return;
-  i.status = "active"; S.activeInsp = i; S.constats = i.constats||[];
-  persist(["activeInsp","constats","inspections"]); nav("p-insp-active");
+  openInspection(id);
 }
 
 /* ============================================================
@@ -840,11 +865,39 @@ function startInspection() {
   const cid = document.getElementById("new-client-sel").value;
   const aud = document.getElementById("new-auditor").value.trim();
   if (!cid||!aud) return alert("Client et auditeur requis");
+  // IMPORTANT : sauvegarder l'inspection en cours avant d'en ouvrir une nouvelle
+  syncActiveToList();
   const cl = S.clients.find(c => c.id===cid);
   const ni = { id:uid(), clientId:cid, clientName:cl.name, clientAddress:cl.address||"",
-    auditor:aud, date:new Date().toISOString(), status:"active", inspectors:[aud] };
-  S.inspections.unshift(ni); S.activeInsp=ni; S.constats=[];
+    auditor:aud, date:new Date().toISOString(), status:"active", inspectors:[aud],
+    constats:[], constatsCount:0 };
+  S.inspections.unshift(ni);
+  S.activeInsp = ni; S.constats = []; S.selPlanId = null;
   persist(); startAutoSave(); nav("p-insp-active");
+}
+
+// Recopie l'inspection actuellement ouverte (activeInsp + constats) dans la liste
+// S.inspections, afin qu'aucune inspection en cours ne soit jamais perdue.
+function syncActiveToList() {
+  if (!S.activeInsp) return;
+  const snapshot = { ...S.activeInsp, constats: [...S.constats], constatsCount: S.constats.length };
+  const idx = S.inspections.findIndex(i => i.id === S.activeInsp.id);
+  if (idx >= 0) S.inspections[idx] = snapshot;
+  else S.inspections.unshift(snapshot);
+}
+
+// Ouvre une inspection (en cours OU terminée) dans l'espace de travail
+function openInspection(id) {
+  syncActiveToList();           // ne pas perdre celle qu'on quitte
+  const insp = S.inspections.find(i => i.id === id);
+  if (!insp) return;
+  if (insp.status === "done") insp.status = "active"; // réouverture pour modif
+  S.activeInsp = insp;
+  S.constats = insp.constats || [];
+  S.selPlanId = null;
+  persist(["inspections","activeInsp","constats"]);
+  startAutoSave();
+  nav("p-insp-active");
 }
 function renderInspActive() {
   if (!S.activeInsp) return nav("p-home");
@@ -1106,7 +1159,12 @@ function deleteConstat(id) {
   persist(["constats"]); closeModal("modal-cdetail");
   updateConstatCount(); renderMarkers(); toast("Constat supprimé");
 }
-function leaveInspection() { persist(["constats","activeInsp"]); autoSaveToStorage(); nav("p-home"); }
+function leaveInspection() {
+  syncActiveToList();
+  persist(["constats","activeInsp","inspections"]);
+  autoSaveToStorage();
+  nav("p-home");
+}
 function deleteActiveInsp() {
   if (!confirm("Supprimer définitivement cette inspection ?")) return;
   S.inspections=S.inspections.filter(i => i.id!==S.activeInsp?.id);
@@ -1146,7 +1204,7 @@ function buildConstatForm(type, existing) {
     <div style="margin-bottom:14px"><label class="lbl">Photos (max 3)</label>
       <div class="grid3" style="margin-top:6px">
         ${[0,1,2].map(i=>`<div class="photo-slot" id="ph-slot-${i}" onclick="triggerPhoto(${i})">${_photos[i]?`<img src="${_photos[i]}" alt="Photo ${i+1}">`:`📷`}</div>
-          <input type="file" accept="image/*" capture="environment" id="ph-inp-${i}" style="display:none" onchange="onConstatPhoto(${i},this)">`).join("")}
+          <input type="file" accept="image/*" id="ph-inp-${i}" style="display:none" onchange="onConstatPhoto(${i},this)">`).join("")}
       </div>
     </div>
     <div style="margin-bottom:14px"><label class="lbl" for="cf-obs">Observations</label>
