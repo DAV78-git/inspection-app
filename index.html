@@ -381,6 +381,17 @@ function idbSet(key, value) {
 // Charge tout l'état depuis IndexedDB au démarrage
 async function loadState() {
   await openDB();
+  // Demander un stockage PERSISTANT : empêche le navigateur de purger
+  // automatiquement les données (nettoyage système, espace faible...)
+  try {
+    if (navigator.storage && navigator.storage.persist) {
+      const already = await navigator.storage.persisted();
+      if (!already) {
+        const granted = await navigator.storage.persist();
+        console.log("Stockage persistant:", granted ? "accordé ✓" : "refusé");
+      }
+    }
+  } catch(e) { /* non supporté : on continue */ }
   // Migration éventuelle depuis l'ancien localStorage (one-shot)
   await migrateFromLocalStorage();
   S.clients     = (await idbGet("clients"))     || [];
@@ -753,7 +764,38 @@ function openClientDetail(clientId) {
         <div><div style="font-weight:600;font-size:14px">${esc(p.name)}</div>
         <div style="font-size:12px;color:#6b7280">${esc(p.building||"")}${p.floor?" · "+esc(p.floor):""}</div></div>
       </div>`).join("");
+  // Boutons gérer / supprimer le client
+  document.getElementById("cdetail-plans").innerHTML += `
+    <div style="display:flex;gap:10px;margin-top:24px;padding-top:16px;border-top:1px solid #e5e7eb">
+      <button type="button" class="btn-g" style="flex:1" onclick="openClientForm(S.clients.find(c=>c.id==='${clientId}'))">✏️ Modifier le client</button>
+      <button type="button" class="btn-g" style="flex:1;color:#dc2626;border-color:#dc2626" onclick="deleteClient('${clientId}')">🗑 Supprimer</button>
+    </div>`;
   nav("p-client-detail");
+}
+
+function deleteClient(clientId) {
+  const cl = S.clients.find(c => c.id===clientId);
+  if (!cl) return;
+  // Inspections liées à ce client
+  const linked = S.inspections.filter(i => i.clientId===clientId);
+  const activeLinked = S.activeInsp && S.activeInsp.clientId===clientId;
+  let msg = `Supprimer définitivement le client « ${cl.name} » ?`;
+  if (linked.length || activeLinked) {
+    msg += `\n\n⚠️ Cela supprimera aussi :`;
+    if (linked.length) msg += `\n• ${linked.length} inspection(s) enregistrée(s)`;
+    if (activeLinked)  msg += `\n• l'inspection EN COURS pour ce client`;
+    msg += `\n• tous les plans associés`;
+  }
+  if (!confirm(msg)) return;
+
+  // Suppression : client, ses plans, ses inspections
+  S.clients     = S.clients.filter(c => c.id!==clientId);
+  delete S.plans[clientId];
+  S.inspections = S.inspections.filter(i => i.clientId!==clientId);
+  if (activeLinked) { S.activeInsp = null; S.constats = []; S.selPlanId = null; }
+  persist();
+  toast("Client supprimé ✓");
+  nav("p-clients");
 }
 
 /* ============================================================
