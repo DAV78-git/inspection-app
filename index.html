@@ -228,8 +228,9 @@
       <div style="font-size:48px;margin-bottom:12px">🗺️</div>
       <div style="font-size:14px;text-align:center;line-height:1.5">Sélectionnez un plan ci-dessus<br>puis appuyez sur l'emplacement du constat</div>
     </div>
-    <div id="map-wrap" style="display:none;position:relative">
+    <div id="map-wrap" style="display:none;position:relative;overflow:hidden">
       <img id="map-img" src="" alt="Plan" draggable="false" style="display:block;width:100%;user-select:none">
+      <div id="marker-layer" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;transform-origin:0 0"></div>
     </div>
   </div>
   <div class="bot-bar">
@@ -833,58 +834,192 @@ function selectPlan(planId) {
   const p = (S.plans[S.activeInsp.clientId]||[]).find(x => x.id===planId);
   if (p) showPlan(p); renderPlanTabs();
 }
+// Zoom / déplacement du plan + détection fine du tap
+let _mapZoom = 1, _mapTX = 0, _mapTY = 0;       // état du zoom/translation
+let _touchState = null;                          // suivi des gestes en cours
+
+function applyMapTransform() {
+  const tf = `translate(${_mapTX}px, ${_mapTY}px) scale(${_mapZoom})`;
+  const img = document.getElementById("map-img");
+  const layer = document.getElementById("marker-layer");
+  if (img) img.style.transform = tf;
+  if (layer) layer.style.transform = tf;
+  // Maintenir la taille des marqueurs constante à l'écran
+  document.querySelectorAll("#marker-layer .marker").forEach(m => {
+    m.style.transform = `translate(-50%,-50%) scale(${1/_mapZoom})`;
+  });
+}
+
 function showPlan(plan) {
   document.getElementById("ia-no-plan").style.display="none";
   const wrap = document.getElementById("map-wrap");
   wrap.style.display="block";
   const img = document.getElementById("map-img");
   img.src = plan.image;
-  // Supprimer les anciens listeners
+  // Réinitialiser zoom/position à chaque changement de plan
+  _mapZoom = 1; _mapTX = 0; _mapTY = 0;
+  // Recréer l'élément pour repartir de listeners propres
   img.replaceWith(img.cloneNode(true));
-  const freshImg = document.getElementById("map-img");
-  // Touch ET click pour couvrir tous les cas mobile/desktop
-  freshImg.addEventListener("touchend", onMapTap, {passive: false});
-  freshImg.addEventListener("click",    onMapTap, false);
+  const fresh = document.getElementById("map-img");
+  fresh.style.transformOrigin = "0 0";
+  fresh.style.transition = "none";
+  fresh.style.touchAction = "none"; // on gère nous-mêmes les gestes
+  applyMapTransform();
+
+  // --- Gestion des gestes tactiles ---
+  fresh.addEventListener("touchstart", onTouchStart, {passive:false});
+  fresh.addEventListener("touchmove",  onTouchMove,  {passive:false});
+  fresh.addEventListener("touchend",   onTouchEnd,   {passive:false});
+  // Desktop : clic simple = placer un constat ; molette = zoom
+  fresh.addEventListener("click", onDesktopClick, false);
+  fresh.addEventListener("wheel", onWheel, {passive:false});
+
   document.getElementById("map-wrap").onclick = null;
   renderMarkers();
 }
-function onMapTap(e) {
-  e.preventDefault();
-  e.stopPropagation();
+
+function dist(t1, t2) {
+  const dx = t1.clientX - t2.clientX, dy = t1.clientY - t2.clientY;
+  return Math.hypot(dx, dy);
+}
+function mid(t1, t2) {
+  return { x:(t1.clientX+t2.clientX)/2, y:(t1.clientY+t2.clientY)/2 };
+}
+
+function onTouchStart(e) {
+  if (e.touches.length === 1) {
+    // Début d'un éventuel tap OU déplacement
+    const t = e.touches[0];
+    _touchState = {
+      mode: "pending",
+      startX: t.clientX, startY: t.clientY,
+      lastX: t.clientX, lastY: t.clientY,
+      moved: false, multi: false,
+      startTime: Date.now()
+    };
+  } else if (e.touches.length === 2) {
+    // Pincement : zoom
+    e.preventDefault();
+    _touchState = {
+      mode: "pinch", multi: true, moved: true,
+      startDist: dist(e.touches[0], e.touches[1]),
+      startZoom: _mapZoom,
+      startMid: mid(e.touches[0], e.touches[1]),
+      startTX: _mapTX, startTY: _mapTY
+    };
+  }
+}
+
+function onTouchMove(e) {
+  if (!_touchState) return;
+
+  if (_touchState.mode === "pinch" && e.touches.length === 2) {
+    e.preventDefault();
+    const d = dist(e.touches[0], e.touches[1]);
+    let z = _touchState.startZoom * (d / _touchState.startDist);
+    z = Math.max(1, Math.min(5, z)); // zoom entre x1 et x5
+    _mapZoom = z;
+    // Recentrer autour du point de pincement
+    const m = mid(e.touches[0], e.touches[1]);
+    _mapTX = _touchState.startTX + (m.x - _touchState.startMid.x);
+    _mapTY = _touchState.startTY + (m.y - _touchState.startMid.y);
+    clampPan();
+    applyMapTransform();
+  }
+  else if (_touchState.mode === "pending" && e.touches.length === 1) {
+    const t = e.touches[0];
+    const dx = t.clientX - _touchState.startX;
+    const dy = t.clientY - _touchState.startY;
+    // Seuil : au-delà de 10px de mouvement, ce n'est plus un tap mais un déplacement
+    if (Math.hypot(dx, dy) > 10) {
+      _touchState.mode = "pan";
+      _touchState.moved = true;
+    }
+  }
+  if (_touchState.mode === "pan" && e.touches.length === 1 && _mapZoom > 1) {
+    // Déplacement du plan zoomé
+    e.preventDefault();
+    const t = e.touches[0];
+    _mapTX += (t.clientX - _touchState.lastX);
+    _mapTY += (t.clientY - _touchState.lastY);
+    _touchState.lastX = t.clientX;
+    _touchState.lastY = t.clientY;
+    clampPan();
+    applyMapTransform();
+  }
+}
+
+function onTouchEnd(e) {
+  if (!_touchState) return;
+  // Un tap valide = un seul doigt, pas de mouvement, pas de multi-touch, geste court
+  const isTap = _touchState.mode === "pending"
+             && !_touchState.moved
+             && !_touchState.multi
+             && (Date.now() - _touchState.startTime) < 500;
+  if (isTap) {
+    e.preventDefault();
+    placeConstatAt(_touchState.startX, _touchState.startY);
+  }
+  _touchState = null;
+}
+
+// Empêche de faire sortir le plan de l'écran quand on déplace
+function clampPan() {
+  const img = document.getElementById("map-img");
+  if (!img) return;
+  const w = img.offsetWidth, h = img.offsetHeight;
+  const maxX = 0, minX = w - w * _mapZoom;
+  const maxY = 0, minY = h - h * _mapZoom;
+  _mapTX = Math.max(minX, Math.min(maxX, _mapTX));
+  _mapTY = Math.max(minY, Math.min(maxY, _mapTY));
+}
+
+// Conversion d'un point écran → coordonnées % sur le plan (tient compte du zoom)
+function placeConstatAt(clientX, clientY) {
   const img = document.getElementById("map-img");
   const rect = img.getBoundingClientRect();
-  // Récupérer les coordonnées selon le type d'événement
-  let clientX, clientY;
-  if (e.type === "touchend" && e.changedTouches && e.changedTouches.length > 0) {
-    clientX = e.changedTouches[0].clientX;
-    clientY = e.changedTouches[0].clientY;
-  } else if (e.type === "click") {
-    // Si touchend a déjà traité cet événement, ignorer le click fantôme
-    if (e._fromTouch) return;
-    clientX = e.clientX;
-    clientY = e.clientY;
-  } else {
-    return;
-  }
-  // rect est relatif au viewport — c'est correct car on utilise clientX/Y
-  const x = parseFloat(((clientX - rect.left) / rect.width  * 100).toFixed(2));
-  const y = parseFloat(((clientY - rect.top)  / rect.height * 100).toFixed(2));
-  // Sécurité : valeurs dans [0,100]
+  // Position dans l'image affichée (déjà transformée), ramenée au plan d'origine
+  const xOnDisplayed = clientX - rect.left;
+  const yOnDisplayed = clientY - rect.top;
+  // rect inclut déjà le scale, donc le ratio est direct
+  const x = parseFloat((xOnDisplayed / rect.width  * 100).toFixed(2));
+  const y = parseFloat((yOnDisplayed / rect.height * 100).toFixed(2));
   const cx = Math.max(0, Math.min(100, x));
   const cy = Math.max(0, Math.min(100, y));
   S.pendPt = { x: cx, y: cy };
   openTypeModal();
 }
+
+// Desktop : clic = placer un constat
+function onDesktopClick(e) {
+  // On ignore si l'événement vient d'un touch (déjà traité)
+  if (e.pointerType === "touch" || _touchState) return;
+  placeConstatAt(e.clientX, e.clientY);
+}
+
+// Desktop : molette = zoom
+function onWheel(e) {
+  e.preventDefault();
+  const delta = e.deltaY < 0 ? 1.15 : 1/1.15;
+  _mapZoom = Math.max(1, Math.min(5, _mapZoom * delta));
+  if (_mapZoom === 1) { _mapTX = 0; _mapTY = 0; }
+  clampPan();
+  applyMapTransform();
+}
 function renderMarkers() {
-  document.querySelectorAll(".marker").forEach(m => m.remove());
-  const wrap = document.getElementById("map-wrap");
+  const layer = document.getElementById("marker-layer");
+  if (!layer) return;
+  layer.innerHTML = "";
   S.constats.filter(c => c.planId===S.selPlanId).forEach(c => {
     const t = TYPES[c.type]||{c:"#666"};
     const n = S.constats.indexOf(c)+1;
     const m = document.createElement("div");
-    m.className="marker"; m.style.cssText=`left:${c.x}%;top:${c.y}%;background:${t.c};`;
-    m.textContent=n; m.onclick=e=>{e.stopPropagation();openConstatDetail(c.id);};
-    wrap.appendChild(m);
+    m.className="marker";
+    // Le marqueur garde une taille constante à l'écran malgré le zoom (contre-échelle)
+    m.style.cssText=`left:${c.x}%;top:${c.y}%;background:${t.c};pointer-events:auto;transform:translate(-50%,-50%) scale(${1/_mapZoom});`;
+    m.textContent=n;
+    m.onclick=e=>{e.stopPropagation();openConstatDetail(c.id);};
+    layer.appendChild(m);
   });
 }
 function openTypeModal() {
