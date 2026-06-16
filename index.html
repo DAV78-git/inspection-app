@@ -1151,6 +1151,8 @@ function openConstatDetail(constatId) {
 function editConstat(id) {
   closeModal("modal-cdetail");
   const c = S.constats.find(x => x.id===id); if (!c) return;
+  S.pendPt = null;            // pas de nouveau point : on garde la position d'origine
+  if (c.planId) S.selPlanId = c.planId; // s'assurer que le bon plan est actif
   S.cstatType=c.type; S.editConstatId=id; buildConstatForm(c.type,c); nav("p-constat-form");
 }
 function deleteConstat(id) {
@@ -1349,15 +1351,20 @@ async function capturePlanSnapshot(plan, x, y, type) {
 }
 
 async function saveConstat() {
-  const plan     = S.selPlanId?(S.plans[S.activeInsp?.clientId]||[]).find(p=>p.id===S.selPlanId):null;
   const existing = S.editConstatId?S.constats.find(c=>c.id===S.editConstatId):null;
+  // En MODIFICATION : on conserve le plan d'origine du constat.
+  // En CRÉATION : on prend le plan actuellement sélectionné.
+  const planId   = existing ? existing.planId : S.selPlanId;
+  const plan     = planId ? (S.plans[S.activeInsp?.clientId]||[]).find(p=>p.id===planId) : null;
   const px       = S.pendPt?.x ?? existing?.x;
   const py       = S.pendPt?.y ?? existing?.y;
   let locationSnap = existing?.locationSnap||null;
+  // Recalcule le snapshot seulement si on a un plan ET une position
   if (plan&&px!=null&&py!=null) locationSnap = await capturePlanSnapshot(plan,px,py,S.cstatType);
   const nc = {
     id: S.editConstatId||uid(),
-    planId:plan?.id, planName:plan?.name||"Zone non définie",
+    planId: plan?.id ?? existing?.planId,
+    planName: plan?.name ?? existing?.planName ?? "Zone non définie",
     x:px, y:py, type:S.cstatType, subtype:_subtype, species:_species, priority:_priority,
     observations:    document.getElementById("cf-obs").value.trim(),
     recommendations: [..._recos],
@@ -1366,6 +1373,7 @@ async function saveConstat() {
   };
   if (S.editConstatId) S.constats=S.constats.map(c=>c.id===S.editConstatId?nc:c);
   else S.constats.push(nc);
+  S.pendPt = null; // réinitialiser le point en attente après enregistrement
   persist(["constats"]); autoSaveToStorage();
   toast("Constat enregistré ✓"); nav("p-insp-active");
   updateConstatCount(); renderMarkers();
