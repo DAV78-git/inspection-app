@@ -895,6 +895,8 @@ function openInspection(id) {
   S.activeInsp = insp;
   S.constats = insp.constats || [];
   S.selPlanId = null;
+  // Attribuer des numéros si l'inspection vient d'anciennes données sans num
+  if (S.constats.some(c => c.num == null)) renumberConstats();
   persist(["inspections","activeInsp","constats"]);
   startAutoSave();
   nav("p-insp-active");
@@ -1107,7 +1109,7 @@ function renderMarkers() {
   layer.innerHTML = "";
   S.constats.filter(c => c.planId===S.selPlanId).forEach(c => {
     const t = TYPES[c.type]||{c:"#666"};
-    const n = S.constats.indexOf(c)+1;
+    const n = (c.num != null) ? c.num : (S.constats.indexOf(c)+1);
     const m = document.createElement("div");
     m.className="marker";
     // Le marqueur garde une taille constante à l'écran malgré le zoom (contre-échelle)
@@ -1158,6 +1160,7 @@ function editConstat(id) {
 function deleteConstat(id) {
   if (!confirm("Supprimer ce constat ?")) return;
   S.constats=S.constats.filter(c => c.id!==id);
+  renumberConstats();   // renumérotation continue après suppression
   persist(["constats"]); closeModal("modal-cdetail");
   updateConstatCount(); renderMarkers(); toast("Constat supprimé");
 }
@@ -1199,6 +1202,13 @@ function buildConstatForm(type, existing) {
       <div id="cf-subs" style="margin-top:6px">${ti.subs.map(s=>`<button type="button" class="chip ${_subtype===s?"active":""}" style="${_subtype===s?`background:${ti.c};color:#fff;border-color:${ti.c}`:""}" onclick="setCstatSubtype('${s}','${type}')">${esc(s)}</button>`).join("")}</div></div>`:""}
     <div id="cf-species-wrap" style="margin-bottom:14px;${(!_subtype||!ti.sp[_subtype]?.length)?"display:none":""}">
       <label class="lbl">Espèce</label><div id="cf-species" style="margin-top:6px"></div>
+    </div>
+    <div style="margin-bottom:14px"><label class="lbl" for="cf-num">Numéro du constat</label>
+      <input class="inp" id="cf-num" type="number" min="1" inputmode="numeric"
+        value="${existing?.num ?? ''}"
+        placeholder="${existing ? (existing.num ?? '') : 'Auto (à la suite)'}"
+        style="margin-top:4px">
+      <div style="font-size:11px;color:#9ca3af;margin-top:4px">Laissez vide pour une numérotation automatique. Forcer un numéro décale les autres pour rester cohérent.</div>
     </div>
     <div style="margin-bottom:14px"><label class="lbl">Priorité</label>
       <div id="cf-prios" style="margin-top:6px">${PRIOS.map((p,i)=>`<button type="button" class="prio-row" style="${_priority===i?`background:${p.c}18;border:2px solid ${p.c}`:""}" onclick="setCstatPriority(${i})">${p.e} ${p.l}</button>`).join("")}</div>
@@ -1350,6 +1360,32 @@ async function capturePlanSnapshot(plan, x, y, type) {
   return canvas.toDataURL("image/jpeg", 0.9);
 }
 
+// Renumérote les constats de l'inspection courante : 1, 2, 3 ... sans trou.
+// Respecte l'ordre des numéros existants (num), les constats sans num vont à la fin.
+function renumberConstats() {
+  S.constats.sort((a, b) => {
+    const na = (a.num != null) ? a.num : 1e9;
+    const nb = (b.num != null) ? b.num : 1e9;
+    if (na !== nb) return na - nb;
+    return 0;
+  });
+  S.constats.forEach((c, i) => { c.num = i + 1; });
+}
+
+// Force un numéro pour un constat donné, en décalant les autres pour éviter les doublons.
+function setConstatNumber(constatId, wanted) {
+  const total = S.constats.length;
+  wanted = Math.max(1, Math.min(total, parseInt(wanted, 10) || 1));
+  const moving = S.constats.find(c => c.id === constatId);
+  if (!moving) return;
+  const others = S.constats.filter(c => c.id !== constatId)
+                           .sort((a, b) => (a.num||0) - (b.num||0));
+  // Réinsère "moving" à la position voulue (wanted-1)
+  others.splice(wanted - 1, 0, moving);
+  others.forEach((c, i) => { c.num = i + 1; });
+  S.constats = others;
+}
+
 async function saveConstat() {
   const existing = S.editConstatId?S.constats.find(c=>c.id===S.editConstatId):null;
   // En MODIFICATION : on conserve le plan d'origine du constat.
@@ -1363,6 +1399,7 @@ async function saveConstat() {
   if (plan&&px!=null&&py!=null) locationSnap = await capturePlanSnapshot(plan,px,py,S.cstatType);
   const nc = {
     id: S.editConstatId||uid(),
+    num: existing?.num,   // conservé en modif, sera (ré)attribué ci-dessous
     planId: plan?.id ?? existing?.planId,
     planName: plan?.name ?? existing?.planName ?? "Zone non définie",
     x:px, y:py, type:S.cstatType, subtype:_subtype, species:_species, priority:_priority,
@@ -1373,6 +1410,15 @@ async function saveConstat() {
   };
   if (S.editConstatId) S.constats=S.constats.map(c=>c.id===S.editConstatId?nc:c);
   else S.constats.push(nc);
+
+  // Gestion du numéro
+  const wantedNum = parseInt((document.getElementById("cf-num")?.value || "").trim(), 10);
+  if (!isNaN(wantedNum)) {
+    setConstatNumber(nc.id, wantedNum);   // l'utilisateur a forcé un numéro
+  } else {
+    renumberConstats();                    // sinon : renumérotation continue auto
+  }
+
   S.pendPt = null; // réinitialiser le point en attente après enregistrement
   persist(["constats"]); autoSaveToStorage();
   toast("Constat enregistré ✓"); nav("p-insp-active");
@@ -1490,7 +1536,7 @@ function generateReport(insp, constats, conclusion) {
     ${foot(esc(insp.clientName)+" — Synthèse")}
   </div>`;
 
-  const sC = C.map((c,idx)=>{
+  const sC = [...C].sort((a,b)=>((a.num!=null?a.num:1e9)-(b.num!=null?b.num:1e9))).map((c,idx)=>{
     const t=TYPES[c.type]||{e:"?",c:"#666"}; const pr=PRIOS[c.priority]||PRIOS[0];
     // fit = "contain" pour la localisation (plan entier visible, jamais rogné)
     //       "cover"   pour les photos (remplissage esthétique)
@@ -1508,7 +1554,7 @@ function generateReport(insp, constats, conclusion) {
     <div style="width:297mm;height:210mm;display:flex;flex-direction:column;page-break-after:always;overflow:hidden;background:#fff;font-family:Arial,sans-serif">
       <div style="background:#${NAVY};padding:3.5mm 10mm;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
         <div style="display:flex;align-items:center;gap:8px;min-width:0;overflow:hidden">
-          <span style="background:${t.c};color:#fff;padding:2px 10px;border-radius:4px;font-size:9pt;font-weight:700;white-space:nowrap;flex-shrink:0">N°${idx+1} — ${t.e} ${esc(c.type)}</span>
+          <span style="background:${t.c};color:#fff;padding:2px 10px;border-radius:4px;font-size:9pt;font-weight:700;white-space:nowrap;flex-shrink:0">N°${(c.num!=null)?c.num:(idx+1)} — ${t.e} ${esc(c.type)}</span>
           ${c.subtype?`<span style="color:rgba(255,255,255,0.7);font-size:8.5pt;white-space:nowrap;flex-shrink:0">▸ ${esc(c.subtype)}</span>`:""}
           ${c.species?`<span style="color:rgba(255,255,255,0.45);font-size:8pt">(${esc(c.species)})</span>`:""}
           <span style="color:rgba(255,255,255,0.4);font-size:8pt;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">📍 ${esc(c.planName||"")}</span>
@@ -1551,8 +1597,9 @@ function generateReport(insp, constats, conclusion) {
       <div style="width:43%;padding:6mm 8mm;background:#f6f7f9;overflow:hidden">
         <div style="font-size:8pt;font-weight:700;color:#333;text-transform:uppercase;letter-spacing:1px;margin-bottom:4mm">Plan d'actions prioritaires</div>
         <table style="width:100%;border-collapse:collapse;font-size:8.5pt">
-          <tr><th style="background:#${NAVY};color:#fff;padding:4px 6px;text-align:left">Zone</th><th style="background:#${NAVY};color:#fff;padding:4px 6px;text-align:left">Problème</th><th style="background:#${NAVY};color:#fff;padding:4px 6px;text-align:left">Priorité</th></tr>
-          ${C.map((c,i)=>`<tr style="background:${i%2?"#fff":"#f0f2f5"}">
+          <tr><th style="background:#${NAVY};color:#fff;padding:4px 6px;text-align:left">N°</th><th style="background:#${NAVY};color:#fff;padding:4px 6px;text-align:left">Zone</th><th style="background:#${NAVY};color:#fff;padding:4px 6px;text-align:left">Problème</th><th style="background:#${NAVY};color:#fff;padding:4px 6px;text-align:left">Priorité</th></tr>
+          ${[...C].sort((a,b)=>((a.num!=null?a.num:1e9)-(b.num!=null?b.num:1e9))).map((c,i)=>`<tr style="background:${i%2?"#fff":"#f0f2f5"}">
+            <td style="padding:3px 6px;border-bottom:1px solid #e8e8e8;color:#${RED};font-weight:700">${(c.num!=null)?c.num:(i+1)}</td>
             <td style="padding:3px 6px;border-bottom:1px solid #e8e8e8;color:#555">${esc(c.planName)||"—"}</td>
             <td style="padding:3px 6px;border-bottom:1px solid #e8e8e8;font-weight:500">${esc(c.type)}${c.subtype?" – "+esc(c.subtype):""}</td>
             <td style="padding:3px 6px;border-bottom:1px solid #e8e8e8;color:${pCol[c.priority]||pCol[0]};font-weight:700">${pDot[c.priority]||"🔴"}</td>
