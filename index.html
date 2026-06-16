@@ -1585,30 +1585,27 @@ function generateReport(insp, constats, conclusion) {
     </div>`;}).join("");
 
   const sConcl = C.length>0?`
-  <div style="width:297mm;height:210mm;display:flex;flex-direction:column;page-break-after:always;overflow:hidden;background:#fff;font-family:Arial,sans-serif">
+  <div style="width:297mm;min-height:210mm;display:flex;flex-direction:column;page-break-after:always;background:#fff;font-family:Arial,sans-serif">
     <div style="background:#${NAVY};padding:5mm 10mm;display:flex;align-items:center;flex-shrink:0">
       <span style="font-size:14pt;font-weight:700;color:#fff">Commentaires — Remarques</span>
     </div>
-    <div style="flex:1;display:flex;overflow:hidden">
-      <div style="width:57%;padding:6mm 8mm;border-right:1px solid #eee;overflow:hidden;display:flex;flex-direction:column">
-        <div style="font-size:8pt;font-weight:700;color:#${RED};text-transform:uppercase;letter-spacing:1px;margin-bottom:3mm">Analyse et conclusion</div>
-        <div style="font-size:9.5pt;line-height:1.7;color:#333;white-space:pre-wrap;overflow:hidden;flex:1">${esc(conclusion)}</div>
-      </div>
-      <div style="width:43%;padding:6mm 8mm;background:#f6f7f9;overflow:hidden">
-        <div style="font-size:8pt;font-weight:700;color:#333;text-transform:uppercase;letter-spacing:1px;margin-bottom:4mm">Plan d'actions prioritaires</div>
-        <table style="width:100%;border-collapse:collapse;font-size:8.5pt">
-          <tr><th style="background:#${NAVY};color:#fff;padding:4px 6px;text-align:left">N°</th><th style="background:#${NAVY};color:#fff;padding:4px 6px;text-align:left">Zone</th><th style="background:#${NAVY};color:#fff;padding:4px 6px;text-align:left">Problème</th><th style="background:#${NAVY};color:#fff;padding:4px 6px;text-align:left">Priorité</th></tr>
-          ${[...C].sort((a,b)=>((a.num!=null?a.num:1e9)-(b.num!=null?b.num:1e9))).map((c,i)=>`<tr style="background:${i%2?"#fff":"#f0f2f5"}">
-            <td style="padding:3px 6px;border-bottom:1px solid #e8e8e8;color:#${RED};font-weight:700">${(c.num!=null)?c.num:(i+1)}</td>
-            <td style="padding:3px 6px;border-bottom:1px solid #e8e8e8;color:#555">${esc(c.planName)||"—"}</td>
-            <td style="padding:3px 6px;border-bottom:1px solid #e8e8e8;font-weight:500">${esc(c.type)}${c.subtype?" – "+esc(c.subtype):""}</td>
-            <td style="padding:3px 6px;border-bottom:1px solid #e8e8e8;color:${pCol[c.priority]||pCol[0]};font-weight:700">${pDot[c.priority]||"🔴"}</td>
-          </tr>`).join("")}
-        </table>
-        <div style="display:flex;gap:5mm;margin-top:5mm;border-top:1px solid #ddd;padding-top:4mm">
-          <div style="flex:1"><div style="font-size:7pt;color:#999;margin-bottom:1mm">Auditeur</div><div style="font-size:8.5pt;font-weight:600">${esc(insp.auditor)}</div><div style="border-top:1px solid #aaa;margin-top:8mm"></div></div>
-          <div style="flex:1"><div style="font-size:7pt;color:#999;margin-bottom:1mm">Client</div><div style="font-size:8.5pt;font-weight:600">${esc(insp.clientName)}</div><div style="border-top:1px solid #aaa;margin-top:8mm"></div></div>
-        </div>
+    <div style="flex:1;padding:6mm 10mm">
+      <div style="font-size:8pt;font-weight:700;color:#${RED};text-transform:uppercase;letter-spacing:1px;margin-bottom:3mm">Analyse et conclusion</div>
+      <div style="font-size:9.5pt;line-height:1.7;color:#333;white-space:pre-wrap;margin-bottom:8mm">${esc(conclusion)}</div>
+
+      <div style="font-size:8pt;font-weight:700;color:#333;text-transform:uppercase;letter-spacing:1px;margin-bottom:4mm;page-break-before:auto">Plan d'actions prioritaires</div>
+      <table style="width:100%;border-collapse:collapse;font-size:8.5pt">
+        <tr><th style="background:#${NAVY};color:#fff;padding:4px 6px;text-align:left">N°</th><th style="background:#${NAVY};color:#fff;padding:4px 6px;text-align:left">Zone</th><th style="background:#${NAVY};color:#fff;padding:4px 6px;text-align:left">Problème</th><th style="background:#${NAVY};color:#fff;padding:4px 6px;text-align:left">Priorité</th></tr>
+        ${[...C].sort((a,b)=>((a.num!=null?a.num:1e9)-(b.num!=null?b.num:1e9))).map((c,i)=>`<tr style="background:${i%2?"#fff":"#f0f2f5"}">
+          <td style="padding:3px 6px;border-bottom:1px solid #e8e8e8;color:#${RED};font-weight:700">${(c.num!=null)?c.num:(i+1)}</td>
+          <td style="padding:3px 6px;border-bottom:1px solid #e8e8e8;color:#555">${esc(c.planName)||"—"}</td>
+          <td style="padding:3px 6px;border-bottom:1px solid #e8e8e8;font-weight:500">${esc(c.type)}${c.subtype?" – "+esc(c.subtype):""}</td>
+          <td style="padding:3px 6px;border-bottom:1px solid #e8e8e8;color:${pCol[c.priority]||pCol[0]};font-weight:700">${pDot[c.priority]||"🔴"}</td>
+        </tr>`).join("")}
+      </table>
+      <div style="display:flex;gap:10mm;margin-top:10mm;border-top:1px solid #ddd;padding-top:5mm;max-width:120mm">
+        <div style="flex:1"><div style="font-size:7pt;color:#999;margin-bottom:1mm">Auditeur</div><div style="font-size:8.5pt;font-weight:600">${esc(insp.auditor)}</div><div style="border-top:1px solid #aaa;margin-top:10mm"></div></div>
+        <div style="flex:1"><div style="font-size:7pt;color:#999;margin-bottom:1mm">Client</div><div style="font-size:8.5pt;font-weight:600">${esc(insp.clientName)}</div><div style="border-top:1px solid #aaa;margin-top:10mm"></div></div>
       </div>
     </div>
     ${foot(esc(insp.clientName)+" — Conclusion")}
