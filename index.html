@@ -1464,7 +1464,7 @@ function generateReport(insp, constats, conclusion) {
   let sn = 1;
 
   const foot = info => `
-    <div style="background:#${RED};height:4.3%;display:flex;align-items:center;justify-content:space-between;padding:0 3.4%;flex-shrink:0;font-family:Arial,sans-serif">
+    <div style="background:#${RED};height:9mm;display:flex;align-items:center;justify-content:space-between;padding:0 10mm;flex-shrink:0;font-family:Arial,sans-serif">
       <span style="font-size:7.5pt;color:rgba(255,255,255,0.8)">${info||""}</span>
       <div style="display:flex;align-items:center;gap:8px">
         <span style="font-size:8pt;color:#fff;font-weight:700">${sn++} / ${N}</span>
@@ -1512,26 +1512,26 @@ function generateReport(insp, constats, conclusion) {
   </div>`;sn++;
 
   const s2 = `
-  <div style="width:100%;height:100%;display:flex;flex-direction:column;overflow:hidden;background:#fff;font-family:Arial,sans-serif">
-    <div style="background:#${NAVY};height:9%;display:flex;align-items:center;padding:0 3.4%;flex-shrink:0">
+  <div style="width:297mm;height:210mm;display:flex;flex-direction:column;page-break-after:always;overflow:hidden;background:#fff;font-family:Arial,sans-serif">
+    <div style="background:#${NAVY};padding:5mm 10mm;display:flex;align-items:center;flex-shrink:0">
       <span style="font-size:14pt;font-weight:700;color:#fff">Synthèse de l'inspection</span>
     </div>
-    <div style="flex:1;padding:3% 3.4%;display:flex;gap:3%;overflow:hidden">
-      <div style="flex:1;min-width:0">
-        <div style="font-size:8pt;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:1px;margin-bottom:3%">Par type de nuisible</div>
+    <div style="flex:1;padding:6mm 10mm;display:flex;gap:8mm">
+      <div style="flex:1">
+        <div style="font-size:8pt;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:1px;margin-bottom:4mm">Par type de nuisible</div>
         ${Object.entries(byType).map(([t,n])=>{const ti=TYPES[t]||{e:"?",c:"#666"};return`
-          <div style="display:flex;align-items:center;gap:10px;padding:2% 3%;border-radius:6px;background:#f6f7f9;border-left:4px solid ${ti.c};margin-bottom:2.5%">
-            <div style="font-size:18pt;font-weight:900;color:${ti.c};min-width:28px;text-align:center;line-height:1">${n}</div>
+          <div style="display:flex;align-items:center;gap:10px;padding:3mm 4mm;border-radius:6px;background:#f6f7f9;border-left:4px solid ${ti.c};margin-bottom:3mm">
+            <div style="font-size:18pt;font-weight:900;color:${ti.c};min-width:28px;text-align:center">${n}</div>
             <div><div style="font-size:10pt;font-weight:600">${ti.e} ${esc(t)}</div><div style="font-size:8pt;color:#888">${n} constat${n>1?"s":""}</div></div>
           </div>`;}).join("")}
       </div>
-      <div style="flex:1;min-width:0">
-        <div style="font-size:8pt;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:1px;margin-bottom:3%">Par priorité</div>
+      <div style="flex:1">
+        <div style="font-size:8pt;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:1px;margin-bottom:4mm">Par priorité</div>
         ${PRIOS.map((p,i)=>{const n=C.filter(c=>c.priority===i).length;return`
-          <div style="display:flex;align-items:center;gap:10px;margin-bottom:2.5%;padding:2% 3%;border-radius:6px;background:#f6f7f9;border-left:4px solid ${p.c}">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:3mm;padding:3mm 4mm;border-radius:4px;background:#f6f7f9">
             <div style="width:12px;height:12px;border-radius:50%;background:${p.c};flex-shrink:0"></div>
             <div style="font-size:9pt;flex:1;color:#333">${p.l}</div>
-            <div style="font-size:16pt;font-weight:900;color:${p.c};line-height:1">${n}</div>
+            <div style="font-size:13pt;font-weight:700;color:${p.c}">${n}</div>
           </div>`;}).join("")}
       </div>
     </div>
@@ -1553,8 +1553,8 @@ function generateReport(insp, constats, conclusion) {
           <span style="font-size:18pt">—</span><span style="font-size:7.5pt;font-family:Arial">${lbl}</span>
         </div>`;
     return `
-    <div style="width:100%;height:100%;display:flex;flex-direction:column;overflow:hidden;background:#fff;font-family:Arial,sans-serif">
-      <div style="background:#${NAVY};height:7%;display:flex;align-items:center;justify-content:space-between;padding:0 3.4%;flex-shrink:0">
+    <div style="width:297mm;height:210mm;display:flex;flex-direction:column;page-break-after:always;overflow:hidden;background:#fff;font-family:Arial,sans-serif">
+      <div style="background:#${NAVY};padding:3.5mm 10mm;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
         <div style="display:flex;align-items:center;gap:8px;min-width:0;overflow:hidden">
           <span style="background:${t.c};color:#fff;padding:2px 10px;border-radius:4px;font-size:9pt;font-weight:700;white-space:nowrap;flex-shrink:0">N°${(c.num!=null)?c.num:(idx+1)} — ${t.e} ${esc(c.type)}</span>
           ${c.subtype?`<span style="color:rgba(255,255,255,0.7);font-size:8.5pt;white-space:nowrap;flex-shrink:0">▸ ${esc(c.subtype)}</span>`:""}
@@ -1565,20 +1565,20 @@ function generateReport(insp, constats, conclusion) {
           <span style="background:${pCol[c.priority]||pCol[0]};color:#fff;padding:2px 10px;border-radius:10px;font-size:8pt;font-weight:600;white-space:nowrap">${pr.e} ${esc(pr.l)}</span>
         </div>
       </div>
-      <div style="display:flex;gap:2px;background:#444;height:62%;flex-shrink:0">
+      <div style="display:flex;gap:2px;background:#444;height:120mm;flex-shrink:0">
         ${ph(c.locationSnap,"Localisation","contain")}${ph(c.photos?.[0],"Photo 1")}${ph(c.photos?.[1],"Photo 2")}${ph(c.photos?.[2],"Photo 3")}
       </div>
-      <div style="flex:1;display:flex;border-top:3px solid #${RED};overflow:hidden;min-height:0">
-        <div style="flex:1;padding:1.5% 2.4%;border-right:1px solid #eee;overflow:hidden;background:#fff">
-          <div style="font-size:7pt;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#${RED};margin-bottom:1%">Observations</div>
-          <div style="font-size:9pt;color:#333;line-height:1.5">${esc(c.observations)||"—"}</div>
+      <div style="flex:1;display:flex;border-top:3px solid #${RED};overflow:hidden">
+        <div style="flex:1;padding:4mm 7mm;border-right:1px solid #eee;overflow:hidden">
+          <div style="font-size:7pt;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#${RED};margin-bottom:2.5mm">Observations</div>
+          <div style="font-size:9.5pt;color:#333;line-height:1.6">${esc(c.observations)||"—"}</div>
         </div>
-        <div style="flex:1;padding:1.5% 2.4%;background:#f7f8fa;overflow:hidden">
-          <div style="font-size:7pt;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#${RED};margin-bottom:1%">Actions recommandées</div>
+        <div style="flex:1;padding:4mm 7mm;background:#f7f8fa;overflow:hidden">
+          <div style="font-size:7pt;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#${RED};margin-bottom:2.5mm">Actions recommandées</div>
           ${c.recommendations?.length
-            ?c.recommendations.map(r=>`<div style="display:flex;gap:5px;padding:0.5% 0;border-bottom:0.5px solid #e8e8e8;align-items:flex-start">
-                <span style="color:#${RED};font-weight:900;flex-shrink:0;font-size:11pt;line-height:1">›</span>
-                <span style="font-size:9pt;color:#333;line-height:1.35">${esc(r)}</span>
+            ?c.recommendations.map(r=>`<div style="display:flex;gap:6px;padding:1.5mm 0;border-bottom:0.5px solid #e8e8e8;align-items:flex-start">
+                <span style="color:#${RED};font-weight:900;flex-shrink:0;font-size:11pt;line-height:1.1">›</span>
+                <span style="font-size:9.5pt;color:#333;line-height:1.4">${esc(r)}</span>
               </div>`).join("")
             :`<div style="font-size:9pt;color:#aaa">—</div>`}
         </div>
@@ -1588,29 +1588,36 @@ function generateReport(insp, constats, conclusion) {
   const sC = sCArr.join("");
 
   const sConcl = C.length>0?`
-  <div style="width:100%;height:100%;display:flex;flex-direction:column;overflow:hidden;background:#fff;font-family:Arial,sans-serif">
-    <div style="background:#${NAVY};height:9%;display:flex;align-items:center;padding:0 3.4%;flex-shrink:0">
+  <div style="width:297mm;min-height:210mm;background:#fff;font-family:Arial,sans-serif;break-before:page">
+    <div style="background:#${NAVY};padding:5mm 10mm;display:flex;align-items:center">
       <span style="font-size:14pt;font-weight:700;color:#fff">Commentaires — Remarques</span>
     </div>
-    <div style="flex:1;padding:2% 3.4%;overflow:hidden">
-      <div style="font-size:8pt;font-weight:700;color:#${RED};text-transform:uppercase;letter-spacing:1px;margin-bottom:2%">Analyse et conclusion</div>
-      <div style="font-size:9pt;line-height:1.6;color:#333;white-space:pre-wrap;margin-bottom:3%;max-height:30%;overflow:hidden">${esc(conclusion)}</div>
-      <div style="font-size:8pt;font-weight:700;color:#333;text-transform:uppercase;letter-spacing:1px;margin-bottom:2%">Plan d'actions prioritaires</div>
-      <table style="width:100%;border-collapse:collapse;font-size:8pt">
-        <tr><th style="background:#${NAVY};color:#fff;padding:4px 6px;text-align:left">N°</th><th style="background:#${NAVY};color:#fff;padding:4px 6px;text-align:left">Zone</th><th style="background:#${NAVY};color:#fff;padding:4px 6px;text-align:left">Problème</th><th style="background:#${NAVY};color:#fff;padding:4px 6px;text-align:left">Priorité</th></tr>
-        ${[...C].sort((a,b)=>((a.num!=null?a.num:1e9)-(b.num!=null?b.num:1e9))).map((c,i)=>`<tr style="background:${i%2?"#fff":"#f0f2f5"}">
-          <td style="padding:3px 6px;border-bottom:1px solid #e8e8e8;color:#${RED};font-weight:700">${(c.num!=null)?c.num:(i+1)}</td>
-          <td style="padding:3px 6px;border-bottom:1px solid #e8e8e8;color:#555">${esc(c.planName)||"—"}</td>
-          <td style="padding:3px 6px;border-bottom:1px solid #e8e8e8;font-weight:500">${esc(c.type)}${c.subtype?" – "+esc(c.subtype):""}</td>
-          <td style="padding:3px 6px;border-bottom:1px solid #e8e8e8;color:${pCol[c.priority]||pCol[0]};font-weight:700">${pDot[c.priority]||"🔴"}</td>
-        </tr>`).join("")}
+    <div style="padding:6mm 10mm">
+      <div style="font-size:8pt;font-weight:700;color:#${RED};text-transform:uppercase;letter-spacing:1px;margin-bottom:3mm">Analyse et conclusion</div>
+      <div style="font-size:9.5pt;line-height:1.7;color:#333;white-space:pre-wrap;margin-bottom:8mm">${esc(conclusion)}</div>
+      <div style="font-size:8pt;font-weight:700;color:#333;text-transform:uppercase;letter-spacing:1px;margin-bottom:4mm">Plan d'actions prioritaires</div>
+      <table style="width:100%;border-collapse:collapse;font-size:8.5pt">
+        <thead><tr>
+          <th style="background:#${NAVY};color:#fff;padding:4px 6px;text-align:left">N°</th>
+          <th style="background:#${NAVY};color:#fff;padding:4px 6px;text-align:left">Zone</th>
+          <th style="background:#${NAVY};color:#fff;padding:4px 6px;text-align:left">Problème</th>
+          <th style="background:#${NAVY};color:#fff;padding:4px 6px;text-align:left">Priorité</th>
+        </tr></thead>
+        <tbody>
+        ${[...C].sort((a,b)=>((a.num!=null?a.num:1e9)-(b.num!=null?b.num:1e9))).map((c,i)=>`
+          <tr style="background:${i%2?"#fff":"#f0f2f5"};break-inside:avoid">
+            <td style="padding:4px 6px;border-bottom:1px solid #e8e8e8;color:#${RED};font-weight:700">${(c.num!=null)?c.num:(i+1)}</td>
+            <td style="padding:4px 6px;border-bottom:1px solid #e8e8e8;color:#555">${esc(c.planName)||"—"}</td>
+            <td style="padding:4px 6px;border-bottom:1px solid #e8e8e8;font-weight:500">${esc(c.type)}${c.subtype?" – "+esc(c.subtype):""}</td>
+            <td style="padding:4px 6px;border-bottom:1px solid #e8e8e8;color:${pCol[c.priority]||pCol[0]};font-weight:700">${pDot[c.priority]||"🔴"}</td>
+          </tr>`).join("")}
+        </tbody>
       </table>
-      <div style="display:flex;gap:5%;margin-top:3%;border-top:1px solid #ddd;padding-top:2%;max-width:40%">
-        <div style="flex:1"><div style="font-size:7pt;color:#999;margin-bottom:1mm">Auditeur</div><div style="font-size:8.5pt;font-weight:600">${esc(insp.auditor)}</div><div style="border-top:1px solid #aaa;margin-top:8mm"></div></div>
-        <div style="flex:1"><div style="font-size:7pt;color:#999;margin-bottom:1mm">Client</div><div style="font-size:8.5pt;font-weight:600">${esc(insp.clientName)}</div><div style="border-top:1px solid #aaa;margin-top:8mm"></div></div>
+      <div style="display:flex;gap:10mm;margin-top:10mm;border-top:1px solid #ddd;padding-top:5mm;max-width:120mm">
+        <div style="flex:1"><div style="font-size:7pt;color:#999;margin-bottom:1mm">Auditeur</div><div style="font-size:8.5pt;font-weight:600">${esc(insp.auditor)}</div><div style="border-top:1px solid #aaa;margin-top:10mm"></div></div>
+        <div style="flex:1"><div style="font-size:7pt;color:#999;margin-bottom:1mm">Client</div><div style="font-size:8.5pt;font-weight:600">${esc(insp.clientName)}</div><div style="border-top:1px solid #aaa;margin-top:10mm"></div></div>
       </div>
     </div>
-    ${foot(esc(insp.clientName)+" — Conclusion")}
   </div>`:"";
 
   const sBck = `
@@ -1631,90 +1638,28 @@ function generateReport(insp, constats, conclusion) {
   const safeName = (insp.clientName || "rapport").replace(/[^a-zA-Z0-9]/g, "_");
   const fileBase = `Rapport_${safeName}_${fmt(insp.date).replace(/\//g,"-")}`;
 
-  // Le rapport s'ouvre dans une nouvelle fenêtre avec :
-  //  - 📄 Télécharger le PDF (couleurs garanties) : génère un VRAI pdf via html2pdf,
-  //    indépendant du module d'impression du téléphone (qui ignore parfois les couleurs)
-  //  - 🖨️ Imprimer : fallback impression navigateur
-  const LIB = REPORT_PDF_LIB;
-  const pagesHtml = [s1,s2,...sCArr,sConcl,sBck].filter(Boolean)
+  const pagesFixed = [s1, s2, ...sCArr, sBck].filter(Boolean)
     .map(p => `<div class="rep-page">${p}</div>`).join("");
+  const pagesHtml = pagesFixed.replace(`<div class="rep-page">${sBck}</div>`,
+    (sConcl ? `<div class="rep-free">${sConcl}</div>` : "") + `<div class="rep-page">${sBck}</div>`);
 
   const html = `<!DOCTYPE html><html lang="fr"><head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${fileBase}</title>
 <style>
 @page{size:297mm 210mm landscape;margin:0}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important}
-html,body{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
-body{background:#666;font-family:Arial,sans-serif}
-.rep-page{width:1123px;height:794px;overflow:hidden;background:#fff;page-break-after:always;position:relative;flex-shrink:0}
-@media screen{body{padding:10px}.rep-page{margin:0 auto 10px;box-shadow:0 2px 12px rgba(0,0,0,.4);transform-origin:top left}}
-@media print{body{background:#fff;padding:0}.no-print{display:none!important}.rep-page{margin:0;box-shadow:none;width:297mm!important;height:210mm!important}}
-#pdf-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9999;display:none;flex-direction:column;align-items:center;justify-content:center;color:#fff}
+html,body{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important;font-family:Arial,sans-serif}
+body{background:#555}
+.rep-page{width:297mm;height:210mm;overflow:hidden;background:#fff;break-after:page;position:relative}
+.rep-free{width:297mm;background:#fff;break-after:page}
+@media screen{body{padding:8mm}.rep-page,.rep-free{margin:0 auto 6mm;box-shadow:0 2px 16px rgba(0,0,0,.5)}}
+@media print{body{background:#fff;padding:0}.no-print{display:none!important}.rep-page,.rep-free{margin:0;box-shadow:none}}
 </style>
 </head><body>
-<div class="no-print" style="position:fixed;bottom:16px;right:16px;display:flex;gap:10px;z-index:998">
-  <button id="btn-pdf" style="background:#e8291c;color:#fff;border:none;padding:14px 24px;border-radius:8px;cursor:pointer;font-size:15px;font-weight:700;box-shadow:0 2px 12px rgba(0,0,0,.4)">📄 Télécharger le PDF</button>
-  <button onclick="window.print()" style="background:#1a2535;color:#fff;border:none;padding:14px 18px;border-radius:8px;cursor:pointer;font-size:14px;font-weight:700;box-shadow:0 2px 12px rgba(0,0,0,.4)">🖨️ Imprimer</button>
+<div class="no-print" style="position:fixed;bottom:16px;right:16px;z-index:999">
+  <button onclick="window.print()" style="background:#e8291c;color:#fff;border:none;padding:14px 28px;border-radius:8px;cursor:pointer;font-size:16px;font-weight:700;box-shadow:0 2px 12px rgba(0,0,0,.5)">🖨️ Enregistrer en PDF</button>
 </div>
-<div id="pdf-overlay"><div style="font-size:17px;font-weight:600;margin-bottom:8px">Génération du PDF…</div><div id="pdf-progress" style="font-size:13px;opacity:.85"></div></div>
 ${pagesHtml}
-<script>${LIB}<\/script>
-<script>
-document.getElementById("btn-pdf").addEventListener("click", makePDF);
-async function makePDF(){
-  var ov=document.getElementById("pdf-overlay"); ov.style.display="flex";
-  var prog=document.getElementById("pdf-progress");
-  prog.textContent="Préparation…";
-  var PX_W=1123;
-  var PX_H=794;
-  var pages=document.querySelectorAll(".rep-page");
-  var pdf=null;
-  try{
-    var initWorker=html2pdf().set({
-      jsPDF:{unit:"mm",format:[297,210],orientation:"landscape"}
-    }).from(document.createElement("div")).toPdf();
-    pdf=await initWorker.get("pdf");
-    while(pdf.internal.getNumberOfPages()>0){ pdf.deletePage(1); }
-
-    for(var i=0;i<pages.length;i++){
-      prog.textContent="Page "+(i+1)+" / "+pages.length;
-      var page=pages[i];
-      // S'assurer que la page a bien les bonnes dimensions px
-      page.style.width=PX_W+"px";
-      page.style.height=PX_H+"px";
-      await new Promise(function(r){ setTimeout(r,80); });
-
-      var canvas=await html2pdf().set({
-        html2canvas:{
-          scale:2,
-          useCORS:true,
-          backgroundColor:"#ffffff",
-          logging:false,
-          width:PX_W, height:PX_H,
-          windowWidth:PX_W, windowHeight:PX_H,
-          scrollX:0, scrollY:0
-        }
-      }).from(page).toCanvas().get("canvas");
-
-      var img=canvas.toDataURL("image/jpeg",0.92);
-      pdf.addPage([297,210],"landscape");
-      pdf.addImage(img,"JPEG",0,0,297,210,undefined,"FAST");
-
-      canvas.width=0; canvas.height=0; canvas=null; img=null;
-      await new Promise(function(r){ setTimeout(r,60); });
-    }
-    prog.textContent="Enregistrement…";
-    pdf.save("${fileBase}.pdf");
-    prog.textContent="Terminé ✓";
-    await new Promise(function(r){ setTimeout(r,400); });
-  }catch(e){
-    prog.innerHTML="<div style='color:#ffd2d2;max-width:280px;text-align:center'>Échec : "+(e&&e.message?e.message:e)+"<br><br>Réessayez, ou utilisez le bouton 🖨️ Imprimer.</div><div style='margin-top:14px'><button onclick=\\"document.getElementById('pdf-overlay').style.display='none'\\" style='background:#fff;color:#111;border:none;padding:10px 18px;border-radius:6px;font-weight:700'>Fermer</button></div>";
-    console.error(e);
-    return;
-  }
-  ov.style.display="none";
-}
-<\/script>
 </body></html>`;
 
   // Création d'un Blob avec une VRAIE URL (corrige le bug about:blank)
