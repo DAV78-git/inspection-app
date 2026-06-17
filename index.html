@@ -1666,46 +1666,50 @@ async function makePDF(){
   var ov=document.getElementById("pdf-overlay"); ov.style.display="flex";
   var prog=document.getElementById("pdf-progress");
   prog.textContent="Préparation…";
+  // Dimensions exactes d'une page A4 paysage en pixels (297×210mm à 96dpi)
+  var PX_W=Math.round(297/25.4*96); // ≈ 1123 px
+  var PX_H=Math.round(210/25.4*96); // ≈ 794 px
+  var pages=document.querySelectorAll(".rep-page");
+  var pdf=null;
   try{
-    var pages=document.querySelectorAll(".rep-page");
-    // Dimensions exactes d'une page A4 paysage en pixels (297×210mm à 96dpi)
-    var PX_W=Math.round(297/25.4*96); // ≈ 1123 px
-    var PX_H=Math.round(210/25.4*96); // ≈ 794 px
-    // 1) Récupère une instance jsPDF propre via un worker html2pdf, puis on vide ses pages.
+    // 1) Instance jsPDF propre (vidée de ses pages auto)
     var initWorker=html2pdf().set({
       jsPDF:{unit:"mm",format:[297,210],orientation:"landscape"}
     }).from(document.createElement("div")).toPdf();
-    var pdf=await initWorker.get("pdf");
-    while(pdf.internal.getNumberOfPages()>0){
-      pdf.deletePage(1);
-    }
-    // 2) Rend chaque page en image HAUTE QUALITÉ. On force la largeur/hauteur de rendu
-    //    aux dimensions A4 paysage pour que la mise en page ne dépende JAMAIS de l'écran
-    //    du téléphone (sinon : rendu portrait + photos coupées).
+    pdf=await initWorker.get("pdf");
+    while(pdf.internal.getNumberOfPages()>0){ pdf.deletePage(1); }
+
+    // 2) Rendu page par page. scale:2 = bon compromis qualité / mémoire mobile.
     for(var i=0;i<pages.length;i++){
       prog.textContent="Page "+(i+1)+" / "+pages.length;
-      var cw=html2pdf().set({
-        image:{type:"jpeg",quality:0.95},
+      var canvas=await html2pdf().set({
         html2canvas:{
-          scale:3,                 // résolution élevée (net, non compressé)
+          scale:2,
           useCORS:true,
           backgroundColor:"#ffffff",
           logging:false,
-          width:PX_W,              // largeur paysage forcée
-          height:PX_H,             // hauteur paysage forcée
-          windowWidth:PX_W,        // viewport de rendu en paysage
-          windowHeight:PX_H
+          width:PX_W, height:PX_H,
+          windowWidth:PX_W, windowHeight:PX_H
         }
-      }).from(pages[i]).toCanvas();
-      var canvas=await cw.get("canvas");
-      var img=canvas.toDataURL("image/jpeg",0.95);
+      }).from(pages[i]).toCanvas().get("canvas");
+
+      var img=canvas.toDataURL("image/jpeg",0.92);
       pdf.addPage([297,210],"landscape");
-      pdf.addImage(img,"JPEG",0,0,297,210,undefined,"SLOW"); // SLOW = meilleure qualité
+      pdf.addImage(img,"JPEG",0,0,297,210,undefined,"FAST");
+
+      // Libère la mémoire du canvas avant la page suivante (évite le crash sur mobile)
+      canvas.width=0; canvas.height=0; canvas=null; img=null;
+      await new Promise(function(r){ setTimeout(r,60); });
     }
+    prog.textContent="Enregistrement…";
     pdf.save("${fileBase}.pdf");
+    prog.textContent="Terminé ✓";
+    await new Promise(function(r){ setTimeout(r,400); });
   }catch(e){
-    alert("Erreur lors de la génération du PDF : "+e.message+"\\nUtilisez le bouton Imprimer en secours.");
+    // Erreur VISIBLE à l'écran (pas juste dans la console)
+    prog.innerHTML="<div style='color:#ffd2d2;max-width:280px;text-align:center'>Échec : "+(e&&e.message?e.message:e)+"<br><br>Réessayez, ou utilisez le bouton 🖨️ Imprimer.</div><div style='margin-top:14px'><button onclick=\\"document.getElementById('pdf-overlay').style.display='none'\\" style='background:#fff;color:#111;border:none;padding:10px 18px;border-radius:6px;font-weight:700'>Fermer</button></div>";
     console.error(e);
+    return; // garde l'overlay ouvert pour montrer l'erreur
   }
   ov.style.display="none";
 }
