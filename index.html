@@ -1668,26 +1668,39 @@ async function makePDF(){
   prog.textContent="Préparation…";
   try{
     var pages=document.querySelectorAll(".rep-page");
+    // Dimensions exactes d'une page A4 paysage en pixels (297×210mm à 96dpi)
+    var PX_W=Math.round(297/25.4*96); // ≈ 1123 px
+    var PX_H=Math.round(210/25.4*96); // ≈ 794 px
     // 1) Récupère une instance jsPDF propre via un worker html2pdf, puis on vide ses pages.
     var initWorker=html2pdf().set({
       jsPDF:{unit:"mm",format:[297,210],orientation:"landscape"}
     }).from(document.createElement("div")).toPdf();
     var pdf=await initWorker.get("pdf");
-    // Repart d'un document vide : supprime toutes les pages auto-créées
     while(pdf.internal.getNumberOfPages()>0){
       pdf.deletePage(1);
     }
-    // 2) Rend chaque page du rapport en image (couleurs respectées par html2canvas) et l'ajoute en pleine page
+    // 2) Rend chaque page en image HAUTE QUALITÉ. On force la largeur/hauteur de rendu
+    //    aux dimensions A4 paysage pour que la mise en page ne dépende JAMAIS de l'écran
+    //    du téléphone (sinon : rendu portrait + photos coupées).
     for(var i=0;i<pages.length;i++){
       prog.textContent="Page "+(i+1)+" / "+pages.length;
       var cw=html2pdf().set({
-        image:{type:"jpeg",quality:0.92},
-        html2canvas:{scale:2,useCORS:true,backgroundColor:"#ffffff",logging:false}
+        image:{type:"jpeg",quality:0.95},
+        html2canvas:{
+          scale:3,                 // résolution élevée (net, non compressé)
+          useCORS:true,
+          backgroundColor:"#ffffff",
+          logging:false,
+          width:PX_W,              // largeur paysage forcée
+          height:PX_H,             // hauteur paysage forcée
+          windowWidth:PX_W,        // viewport de rendu en paysage
+          windowHeight:PX_H
+        }
       }).from(pages[i]).toCanvas();
       var canvas=await cw.get("canvas");
-      var img=canvas.toDataURL("image/jpeg",0.92);
+      var img=canvas.toDataURL("image/jpeg",0.95);
       pdf.addPage([297,210],"landscape");
-      pdf.addImage(img,"JPEG",0,0,297,210,undefined,"FAST");
+      pdf.addImage(img,"JPEG",0,0,297,210,undefined,"SLOW"); // SLOW = meilleure qualité
     }
     pdf.save("${fileBase}.pdf");
   }catch(e){
