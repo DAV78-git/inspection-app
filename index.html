@@ -1671,17 +1671,32 @@ async function makePDF(){
   var PX_H=Math.round(210/25.4*96); // ≈ 794 px
   var pages=document.querySelectorAll(".rep-page");
   var pdf=null;
+  // Conteneur de capture : placé en haut à gauche, à la TAILLE EXACTE d'une page A4 paysage.
+  // Indispensable sur mobile : sinon html2canvas capture du vide (page plus large que l'écran).
+  var stage=document.createElement("div");
+  stage.style.cssText="position:fixed;left:0;top:0;width:"+PX_W+"px;height:"+PX_H+"px;overflow:hidden;background:#fff;z-index:-1;opacity:1";
+  document.body.appendChild(stage);
   try{
-    // 1) Instance jsPDF propre (vidée de ses pages auto)
     var initWorker=html2pdf().set({
       jsPDF:{unit:"mm",format:[297,210],orientation:"landscape"}
     }).from(document.createElement("div")).toPdf();
     pdf=await initWorker.get("pdf");
     while(pdf.internal.getNumberOfPages()>0){ pdf.deletePage(1); }
 
-    // 2) Rendu page par page. scale:2 = bon compromis qualité / mémoire mobile.
     for(var i=0;i<pages.length;i++){
       prog.textContent="Page "+(i+1)+" / "+pages.length;
+      // Copie la page dans le conteneur de capture, forcée à la taille A4 paysage en px
+      var clone=pages[i].cloneNode(true);
+      clone.style.width=PX_W+"px";
+      clone.style.height=PX_H+"px";
+      clone.style.margin="0";
+      clone.style.boxShadow="none";
+      clone.style.transform="none";
+      stage.innerHTML="";
+      stage.appendChild(clone);
+      // Laisse le temps au navigateur de calculer la mise en page et charger les images
+      await new Promise(function(r){ setTimeout(r,120); });
+
       var canvas=await html2pdf().set({
         html2canvas:{
           scale:2,
@@ -1689,15 +1704,15 @@ async function makePDF(){
           backgroundColor:"#ffffff",
           logging:false,
           width:PX_W, height:PX_H,
-          windowWidth:PX_W, windowHeight:PX_H
+          windowWidth:PX_W, windowHeight:PX_H,
+          scrollX:0, scrollY:0
         }
-      }).from(pages[i]).toCanvas().get("canvas");
+      }).from(clone).toCanvas().get("canvas");
 
       var img=canvas.toDataURL("image/jpeg",0.92);
       pdf.addPage([297,210],"landscape");
       pdf.addImage(img,"JPEG",0,0,297,210,undefined,"FAST");
 
-      // Libère la mémoire du canvas avant la page suivante (évite le crash sur mobile)
       canvas.width=0; canvas.height=0; canvas=null; img=null;
       await new Promise(function(r){ setTimeout(r,60); });
     }
@@ -1706,11 +1721,12 @@ async function makePDF(){
     prog.textContent="Terminé ✓";
     await new Promise(function(r){ setTimeout(r,400); });
   }catch(e){
-    // Erreur VISIBLE à l'écran (pas juste dans la console)
     prog.innerHTML="<div style='color:#ffd2d2;max-width:280px;text-align:center'>Échec : "+(e&&e.message?e.message:e)+"<br><br>Réessayez, ou utilisez le bouton 🖨️ Imprimer.</div><div style='margin-top:14px'><button onclick=\\"document.getElementById('pdf-overlay').style.display='none'\\" style='background:#fff;color:#111;border:none;padding:10px 18px;border-radius:6px;font-weight:700'>Fermer</button></div>";
     console.error(e);
-    return; // garde l'overlay ouvert pour montrer l'erreur
+    if(stage&&stage.parentNode) stage.parentNode.removeChild(stage);
+    return;
   }
+  if(stage&&stage.parentNode) stage.parentNode.removeChild(stage);
   ov.style.display="none";
 }
 <\/script>
