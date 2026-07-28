@@ -43,7 +43,7 @@
     .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 100; align-items: flex-end; }
     .overlay.open { display: flex; }
     .modal { background: #fff; border-radius: 18px 18px 0 0; width: 100%; padding: 20px; max-height: 85dvh; overflow-y: auto; }
-    .marker { position: absolute; width: 28px; height: 28px; border-radius: 50%; border: 2.5px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 11px; font-weight: bold; cursor: pointer; transform: translate(-50%,-50%); z-index: 10; }
+    .marker { position: absolute; width: 34px; height: 34px; border-radius: 50%; border: 2.5px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 11px; font-weight: bold; cursor: pointer; transform: translate(-50%,-50%); z-index: 10; }
     .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
     .grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
@@ -1086,7 +1086,7 @@ function placeConstatAt(clientX, clientY) {
   const cx = Math.max(0, Math.min(100, x));
   const cy = Math.max(0, Math.min(100, y));
   S.pendPt = { x: cx, y: cy };
-  openTypeModal();
+  confirmerPlacement();
 }
 
 // Desktop : clic = placer un constat
@@ -1133,21 +1133,49 @@ function selectType(type) {
   closeModal("modal-type"); S.cstatType=type; S.editConstatId=null;
   buildConstatForm(type,null); nav("p-constat-form");
 }
+function openPhoto(src){
+  const ov=document.createElement('div');
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.92);display:flex;align-items:center;justify-content:center;z-index:9999;padding:12px';
+  ov.onclick=()=>ov.remove();
+  ov.innerHTML='<img src="'+src+'" style="max-width:100%;max-height:100%;border-radius:8px">';
+  document.body.appendChild(ov);
+}
+function openConstatPhoto(id,i){
+  const c=S.constats.find(x=>x.id===id); if(!c||!c.photos||!c.photos[i]) return;
+  openPhoto(c.photos[i]);
+}
+function annulerPlacement(){ S.pendPt=null; document.querySelectorAll('.cible-tmp').forEach(e=>e.remove()); const b=document.getElementById('confirm-place'); if(b) b.remove(); }
+function validerPlacement(){ document.querySelectorAll('.cible-tmp').forEach(e=>e.remove()); const b=document.getElementById('confirm-place'); if(b) b.remove(); openTypeModal(); }
+function confirmerPlacement(){
+  const layer=document.getElementById('marker-layer'); if(!layer||!S.pendPt) return;
+  layer.querySelectorAll('.cible-tmp').forEach(e=>e.remove());
+  const cible=document.createElement('div');
+  cible.className='cible-tmp';
+  cible.style.cssText='position:absolute;left:'+S.pendPt.x+'%;top:'+S.pendPt.y+'%;transform:translate(-50%,-50%) scale('+(1/_mapZoom)+');width:38px;height:38px;border:3px solid #e8291c;border-radius:50%;box-shadow:0 0 0 3px rgba(255,255,255,.9);display:flex;align-items:center;justify-content:center;color:#e8291c;font-weight:bold;font-size:22px;pointer-events:none;z-index:20';
+  cible.textContent='+';
+  layer.appendChild(cible);
+  let bar=document.getElementById('confirm-place');
+  if(!bar){ bar=document.createElement('div'); bar.id='confirm-place'; document.body.appendChild(bar); }
+  bar.style.cssText='position:fixed;left:0;right:0;bottom:0;background:#fff;box-shadow:0 -2px 12px rgba(0,0,0,.15);padding:12px 16px;display:flex;gap:10px;align-items:center;z-index:1000';
+  bar.innerHTML='<span style="flex:1;font-size:14px;color:#374151">📍 Placer le constat ici&nbsp;?</span>'
+    +'<button type="button" style="padding:12px 18px;border-radius:10px;border:1px solid #d1d5db;background:#fff;font-size:15px" onclick="annulerPlacement()">Annuler</button>'
+    +'<button type="button" style="padding:12px 22px;border-radius:10px;border:none;background:#e8291c;color:#fff;font-weight:600;font-size:15px" onclick="validerPlacement()">Placer ✓</button>';
+}
 function openConstatDetail(constatId) {
   const c = S.constats.find(x => x.id===constatId); if (!c) return;
   const t = TYPES[c.type]||{e:"?",c:"#666"};
   document.getElementById("modal-cdetail-body").innerHTML = `
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
-      <span style="background:${t.c};color:#fff;padding:3px 10px;border-radius:6px;font-size:13px;font-weight:600">${esc(c.type)}</span>
+      <span style="background:#111;color:#fff;width:26px;height:26px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex:0 0 auto">${(c.num!=null?c.num:(S.constats.indexOf(c)+1))}</span><span style="background:${t.c};color:#fff;padding:4px 10px;border-radius:6px;font-size:13px;font-weight:600">${esc(c.type)}</span>
       ${c.subtype?`<span style="color:${t.c};font-size:13px">▸ ${esc(c.subtype)}</span>`:""}
-      <span style="margin-left:auto;font-size:15px">${PRIOS[c.priority]?.e||"🔴"}</span>
+      <span style="margin-left:auto;display:inline-flex;align-items:center;gap:5px;background:${(PRIOS[c.priority]?.c||'#dc2626')}1a;color:${PRIOS[c.priority]?.c||'#dc2626'};padding:4px 9px;border-radius:999px;font-size:11px;font-weight:600;white-space:nowrap">${PRIOS[c.priority]?.e||"🔴"} ${esc(PRIOS[c.priority]?.l||"")}</span>
     </div>
-    ${c.photos?.some(Boolean)?`<div style="display:flex;gap:6px;margin-bottom:10px">${c.photos.map(ph=>ph?`<img src="${ph}" style="width:80px;height:60px;object-fit:cover;border-radius:6px">`:``).join("")}</div>`:""}
-    ${c.observations?`<div style="font-size:13px;color:#374151;margin-bottom:8px;line-height:1.5">${esc(c.observations)}</div>`:""}
-    ${c.recommendations?.length?`<div style="font-size:12px;color:#6b7280;line-height:1.6">${c.recommendations.map(esc).join(" · ")}</div>`:""}
+    ${c.photos?.some(Boolean)?`<div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">${c.photos.map((ph,i)=>ph?`<img src="${ph}" onclick="openConstatPhoto('${c.id}',${i})" style="width:104px;height:78px;object-fit:cover;border-radius:8px;cursor:pointer">`:``).join("")}</div>`:""}
+    ${c.observations?`<div style="margin-bottom:10px"><div style="font-size:11px;color:#9ca3af;font-weight:600;text-transform:uppercase;letter-spacing:.03em;margin-bottom:2px">Constat</div><div style="font-size:14px;color:#374151;line-height:1.5">${esc(c.observations)}</div></div>`:""}
+    ${c.recommendations?.length?`<div style="margin-bottom:4px"><div style="font-size:11px;color:#9ca3af;font-weight:600;text-transform:uppercase;letter-spacing:.03em;margin-bottom:3px">Actions recommandées</div>${c.recommendations.map(r=>`<div style="font-size:13px;color:#374151;line-height:1.5;padding:2px 0 2px 16px;position:relative"><span style="position:absolute;left:0;color:#16a34a;font-weight:700">✓</span>${esc(r)}</div>`).join("")}</div>`:""}
     <div style="display:flex;gap:8px;margin-top:14px">
-      <button type="button" class="btn-r" style="flex:1" onclick="editConstat('${c.id}')">Modifier</button>
-      <button type="button" class="btn-g" style="flex:1;color:#dc2626;border-color:#dc2626" onclick="deleteConstat('${c.id}')">Supprimer</button>
+      <button type="button" class="btn-r" style="flex:1;padding:14px;font-size:15px" onclick="editConstat('${c.id}')">Modifier</button>
+      <button type="button" class="btn-g" style="flex:1;padding:14px;font-size:15px;color:#dc2626;border-color:#dc2626" onclick="deleteConstat('${c.id}')">Supprimer</button>
     </div>
     <button type="button" style="width:100%;margin-top:8px;padding:10px;background:none;border:none;color:#6b7280;font-size:13px;cursor:pointer" onclick="closeModal('modal-cdetail')">Fermer</button>`;
   document.getElementById("modal-cdetail").classList.add("open");
