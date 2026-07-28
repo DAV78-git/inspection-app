@@ -228,9 +228,15 @@
       <div style="font-size:48px;margin-bottom:12px">🗺️</div>
       <div style="font-size:14px;text-align:center;line-height:1.5">Sélectionnez un plan ci-dessus<br>puis appuyez sur l'emplacement du constat</div>
     </div>
+    <div id="plan-legend" style="display:none;position:sticky;top:0;z-index:5;background:#fff;border-bottom:1px solid #e5e7eb;padding:8px 12px;font-size:11px"></div>
     <div id="map-wrap" style="display:none;position:relative;overflow:hidden">
       <img id="map-img" src="" alt="Plan" draggable="false" style="display:block;width:100%;user-select:none">
       <div id="marker-layer" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;transform-origin:0 0"></div>
+      <div id="zoom-ctrl" style="position:absolute;right:8px;bottom:8px;z-index:6;display:none;flex-direction:column;gap:6px">
+        <button type="button" onclick="zoomStep(1)" style="width:42px;height:42px;border-radius:10px;border:1px solid #d1d5db;background:rgba(255,255,255,.95);font-size:22px;font-weight:600;box-shadow:0 1px 4px rgba(0,0,0,.25)">+</button>
+        <button type="button" onclick="zoomStep(-1)" style="width:42px;height:42px;border-radius:10px;border:1px solid #d1d5db;background:rgba(255,255,255,.95);font-size:24px;font-weight:600;box-shadow:0 1px 4px rgba(0,0,0,.25)">−</button>
+        <button type="button" onclick="resetZoom()" style="width:42px;height:42px;border-radius:10px;border:1px solid #d1d5db;background:rgba(255,255,255,.95);font-size:16px;box-shadow:0 1px 4px rgba(0,0,0,.25)">⤢</button>
+      </div>
     </div>
   </div>
   <div class="bot-bar">
@@ -974,6 +980,8 @@ function showPlan(plan) {
   fresh.addEventListener("wheel", onWheel, {passive:false});
 
   document.getElementById("map-wrap").onclick = null;
+  if (typeof annulerPlacement==="function") annulerPlacement();
+  const _zc=document.getElementById("zoom-ctrl"); if(_zc) _zc.style.display="flex";
   renderMarkers();
 }
 
@@ -1105,21 +1113,58 @@ function onWheel(e) {
   clampPan();
   applyMapTransform();
 }
+function setMarkerMode(m){ S.markerMode=m; renderMarkers(); }
+function renderLegend(){
+  const el=document.getElementById('plan-legend'); if(!el) return;
+  if(!S.selPlanId){ el.style.display='none'; return; }
+  const cs=S.constats.filter(c=>c.planId===S.selPlanId);
+  const mode=S.markerMode||'type';
+  const btn=(m,lbl)=>`<button type="button" onclick="setMarkerMode('${m}')" style="padding:4px 12px;border-radius:999px;border:1px solid ${mode===m?'#e8291c':'#d1d5db'};background:${mode===m?'#e8291c':'#fff'};color:${mode===m?'#fff':'#374151'};font-size:11px;font-weight:600">${lbl}</button>`;
+  const seg=`<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><span style="color:#9ca3af">Points par :</span>${btn('type','Type')}${btn('prio','Priorité')}</div>`;
+  function chip(color,label,n){return `<span style="display:inline-flex;align-items:center;gap:5px;margin:0 10px 4px 0"><span style="width:11px;height:11px;border-radius:50%;background:${color};box-shadow:0 0 0 1.5px #fff,0 0 0 2.5px #d1d5db"></span>${esc(label)} <b>${n}</b></span>`;}
+  let chips='';
+  if(cs.length){
+    const seen={};
+    if(mode==='type'){ cs.forEach(c=>seen[c.type]=(seen[c.type]||0)+1);
+      chips=Object.keys(seen).map(k=>{const t=TYPES[k]||{c:'#666',e:''};return chip(t.c,((t.e||'')+' '+k).trim(),seen[k]);}).join('');
+    } else { cs.forEach(c=>{const p=c.priority??0; seen[p]=(seen[p]||0)+1;});
+      chips=Object.keys(seen).sort().map(p=>{const P=PRIOS[p]||PRIOS[0];return chip(P.c,P.e+' '+P.l,seen[p]);}).join('');
+    }
+  }
+  el.innerHTML=seg+(cs.length?`<div style="line-height:1.9;color:#374151;margin-top:6px">${chips}</div>`:'');
+  el.style.display='block';
+}
+function zoomAround(cx,cy,z){
+  z=Math.max(1,Math.min(5,z));
+  const k=z/_mapZoom;
+  _mapTX = cx - (cx - _mapTX)*k;
+  _mapTY = cy - (cy - _mapTY)*k;
+  _mapZoom=z;
+  clampPan(); applyMapTransform();
+}
+function zoomStep(dir){
+  const wrap=document.getElementById('map-wrap'); if(!wrap) return;
+  const r=wrap.getBoundingClientRect();
+  zoomAround(r.width/2, r.height/2, _mapZoom+dir*0.5);
+}
+function resetZoom(){ _mapZoom=1; _mapTX=0; _mapTY=0; clampPan(); applyMapTransform(); }
 function renderMarkers() {
   const layer = document.getElementById("marker-layer");
   if (!layer) return;
   layer.innerHTML = "";
   S.constats.filter(c => c.planId===S.selPlanId).forEach(c => {
     const t = TYPES[c.type]||{c:"#666"};
+    const _mkColor = (S.markerMode==="prio") ? ((PRIOS[c.priority??0]||{}).c||"#666") : (t.c||"#666");
     const n = (c.num != null) ? c.num : (S.constats.indexOf(c)+1);
     const m = document.createElement("div");
     m.className="marker";
     // Le marqueur garde une taille constante à l'écran malgré le zoom (contre-échelle)
-    m.style.cssText=`left:${c.x}%;top:${c.y}%;background:${t.c};pointer-events:auto;transform:translate(-50%,-50%) scale(${1/_mapZoom});`;
+    m.style.cssText=`left:${c.x}%;top:${c.y}%;background:${_mkColor};pointer-events:auto;transform:translate(-50%,-50%) scale(${1/_mapZoom});`;
     m.textContent=n;
     m.onclick=e=>{e.stopPropagation();openConstatDetail(c.id);};
     layer.appendChild(m);
   });
+  renderLegend();
 }
 function openTypeModal() {
   document.getElementById("type-grid").innerHTML = Object.entries(TYPES).map(([t,v]) =>
@@ -1195,6 +1240,7 @@ function deleteConstat(id) {
   updateConstatCount(); renderMarkers(); toast("Constat supprimé");
 }
 function leaveInspection() {
+  if (typeof annulerPlacement==="function") annulerPlacement();
   syncActiveToList();
   persist(["constats","activeInsp","inspections"]);
   autoSaveToStorage();
