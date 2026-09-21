@@ -985,11 +985,23 @@ function updateConstatCount() {
 function renderPlanTabs() {
   const plans = S.plans[S.activeInsp.clientId]||[];
   document.getElementById("ia-plans").innerHTML =
-    plans.map(p => `<button type="button" class="plan-tab ${S.selPlanId===p.id?"sel":""}" onclick="selectPlan('${p.id}')">${esc(p.name)}</button>`).join("") +
+    plans.map(p => `<span class="plan-tab ${S.selPlanId===p.id?"sel":""}" style="display:inline-flex;align-items:center;padding:0 2px 0 10px;gap:1px">
+        <button type="button" onclick="selectPlan('${p.id}')" style="background:none;border:none;color:inherit;font:inherit;padding:4px 2px;cursor:pointer">${esc(p.name)}</button>
+        <button type="button" onclick="event.stopPropagation();editPlanFromInsp('${p.id}')" aria-label="Modifier ce plan" style="background:none;border:none;color:inherit;font-size:10px;opacity:.75;padding:4px 6px;cursor:pointer">✏️</button>
+      </span>`).join("") +
     `<button type="button" class="plan-tab" onclick="openPlanFromInsp()">+ plan</button>`;
 }
 function openPlanFromInsp() {
   S.currentClientId=S.activeInsp.clientId; S.fromInsp=true; openPlanForm();
+  document.getElementById("plan-back-btn").onclick = () => { S.fromInsp=false; nav("p-insp-active"); };
+}
+// Permet de corriger le nom d'un plan directement depuis les onglets de
+// l'inspection en cours (sans repasser par la fiche client) — pratique sur le terrain.
+function editPlanFromInsp(planId) {
+  const plan = (S.plans[S.activeInsp.clientId]||[]).find(p => p.id===planId);
+  if (!plan) return;
+  S.currentClientId = S.activeInsp.clientId; S.fromInsp = true;
+  openPlanForm(plan);
   document.getElementById("plan-back-btn").onclick = () => { S.fromInsp=false; nav("p-insp-active"); };
 }
 function selectPlan(planId) {
