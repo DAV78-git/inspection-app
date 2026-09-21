@@ -172,10 +172,11 @@
 <section id="p-plan-form" class="page">
   <div class="bar">
     <button type="button" class="back-btn" id="plan-back-btn" onclick="nav('p-client-detail')" aria-label="Retour">←</button>
-    <span class="bar-title">Ajouter un plan</span>
+    <span class="bar-title" id="pform-title">Ajouter un plan</span>
     <button type="button" class="btn-r" style="padding:6px 12px;font-size:13px" onclick="savePlan()">Sauvegarder</button>
   </div>
   <div class="scroll pad">
+    <input type="hidden" id="pform-id">
     <label class="lbl" for="pform-name">Nom du plan *</label>
     <input class="inp" id="pform-name" placeholder="Extérieur, RDC, Bât. trituration 3ème...">
     <label class="lbl" for="pform-building">Bâtiment</label>
@@ -189,6 +190,7 @@
       <div style="margin-top:6px">Photographier ou choisir un plan</div>
     </div>
     <input type="hidden" id="pform-image">
+    <button type="button" id="pform-delete" class="btn-g" style="width:100%;margin-top:20px;color:#dc2626;border-color:#dc2626;display:none" onclick="deletePlan()">🗑 Supprimer ce plan</button>
   </div>
 </section>
 
@@ -229,8 +231,8 @@
       <div style="font-size:14px;text-align:center;line-height:1.5">Sélectionnez un plan ci-dessus<br>puis appuyez sur l'emplacement du constat</div>
     </div>
     <div id="plan-legend" style="display:none;position:sticky;top:0;z-index:5;background:#fff;border-bottom:1px solid #e5e7eb;padding:8px 12px;font-size:11px"></div>
-    <div id="map-wrap" style="display:none;position:relative;overflow:hidden">
-      <img id="map-img" src="" alt="Plan" draggable="false" style="display:block;width:100%;user-select:none">
+    <div id="map-wrap" style="display:none;position:relative;overflow:hidden;margin:0 auto">
+      <img id="map-img" src="" alt="Plan" draggable="false" style="display:block;width:100%;height:100%;object-fit:contain;user-select:none">
       <div id="marker-layer" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;transform-origin:0 0"></div>
       <div id="zoom-ctrl" style="position:absolute;right:8px;bottom:8px;z-index:6;display:none;flex-direction:column;gap:6px">
         <button type="button" onclick="zoomStep(1)" style="width:42px;height:42px;border-radius:10px;border:1px solid #d1d5db;background:rgba(255,255,255,.95);font-size:22px;font-weight:600;box-shadow:0 1px 4px rgba(0,0,0,.25)">+</button>
@@ -774,11 +776,21 @@ function saveClient() {
   const id   = document.getElementById("cform-id").value;
   const name = document.getElementById("cform-name").value.trim();
   if (!name) return alert("Nom requis");
-  const obj = { id:id||uid(), name,
-    address: document.getElementById("cform-address").value.trim(),
+  const address = document.getElementById("cform-address").value.trim();
+  const obj = { id:id||uid(), name, address,
     contact: document.getElementById("cform-contact").value.trim() };
-  if (id) S.clients = S.clients.map(c => c.id===id ? obj : c); else S.clients.push(obj);
-  persist(["clients"]); toast("Client sauvegardé ✓"); nav("p-clients");
+  if (id) {
+    S.clients = S.clients.map(c => c.id===id ? obj : c);
+    // Propage le nom/adresse corrigés vers les inspections déjà créées
+    // (le nom du client y est recopié à la création et n'était plus modifiable après coup).
+    if (S.activeInsp && S.activeInsp.clientId===id) { S.activeInsp.clientName = name; S.activeInsp.clientAddress = address; }
+    S.inspections.forEach(insp => { if (insp.clientId===id) { insp.clientName = name; insp.clientAddress = address; } });
+    persist(["clients","inspections","activeInsp"]);
+  } else {
+    S.clients.push(obj);
+    persist(["clients"]);
+  }
+  toast("Client sauvegardé ✓"); nav("p-clients");
 }
 function openClientDetail(clientId) {
   S.currentClientId = clientId;
@@ -792,10 +804,11 @@ function openClientDetail(clientId) {
   const ps = S.plans[clientId]||[];
   document.getElementById("cdetail-plans").innerHTML = ps.length===0
     ? `<div style="text-align:center;color:#9ca3af;padding:24px">Aucun plan enregistré</div>`
-    : ps.map(p => `<div class="card" style="display:flex;gap:12px;align-items:center">
+    : ps.map(p => `<div class="card" style="display:flex;gap:12px;align-items:center;cursor:pointer" onclick="openPlanForm(S.plans['${clientId}'].find(x=>x.id==='${p.id}'))">
         <img src="${p.image}" alt="Plan" style="width:64px;height:48px;object-fit:cover;border-radius:6px;border:1px solid #e5e7eb;flex-shrink:0">
-        <div><div style="font-weight:600;font-size:14px">${esc(p.name)}</div>
+        <div style="flex:1;min-width:0"><div style="font-weight:600;font-size:14px">${esc(p.name)}</div>
         <div style="font-size:12px;color:#6b7280">${esc(p.building||"")}${p.floor?" · "+esc(p.floor):""}</div></div>
+        <span style="color:#9ca3af;font-size:16px;flex-shrink:0">✏️</span>
       </div>`).join("");
   // Boutons gérer / supprimer le client
   document.getElementById("cdetail-plans").innerHTML += `
@@ -834,9 +847,17 @@ function deleteClient(clientId) {
 /* ============================================================
    PLANS
    ============================================================ */
-function openPlanForm() {
-  ["pform-name","pform-building","pform-floor","pform-image"].forEach(id => document.getElementById(id).value="");
-  document.getElementById("pform-preview").innerHTML = `<div style="font-size:32px">📷</div><div style="margin-top:6px;font-size:13px;color:#9ca3af">Photographier ou choisir un plan</div>`;
+function openPlanForm(plan) {
+  document.getElementById("pform-id").value       = plan?.id       || "";
+  document.getElementById("pform-name").value     = plan?.name     || "";
+  document.getElementById("pform-building").value = plan?.building || "";
+  document.getElementById("pform-floor").value    = plan?.floor    || "";
+  document.getElementById("pform-image").value    = plan?.image    || "";
+  document.getElementById("pform-preview").innerHTML = plan?.image
+    ? `<img src="${plan.image}" alt="Aperçu" style="max-height:160px;object-fit:contain">`
+    : `<div style="font-size:32px">📷</div><div style="margin-top:6px;font-size:13px;color:#9ca3af">Photographier ou choisir un plan</div>`;
+  document.getElementById("pform-title").textContent = plan ? "Modifier le plan" : "Ajouter un plan";
+  document.getElementById("pform-delete").style.display = plan ? "block" : "none";
   document.getElementById("plan-back-btn").onclick = () => nav("p-client-detail");
   nav("p-plan-form");
 }
@@ -846,16 +867,53 @@ async function onPlanFile(input) {
   document.getElementById("pform-image").value = img;
   document.getElementById("pform-preview").innerHTML = `<img src="${img}" alt="Aperçu" style="max-height:160px;object-fit:contain">`;
 }
+// Propage un nouveau nom de plan vers tous les constats qui le référencent
+// (inspection en cours + inspections déjà enregistrées), pour que les
+// rapports PDF déjà générés à nouveau et les futurs reflètent la correction.
+function propagatePlanName(planId, newName) {
+  if (S.activeInsp) {
+    S.constats.forEach(c => { if (c.planId===planId) c.planName = newName; });
+  }
+  S.inspections.forEach(insp => {
+    (insp.constats||[]).forEach(c => { if (c.planId===planId) c.planName = newName; });
+  });
+}
 function savePlan() {
+  const id    = document.getElementById("pform-id").value;
   const name  = document.getElementById("pform-name").value.trim();
   const image = document.getElementById("pform-image").value;
   if (!name||!image) return alert("Nom et image requis");
-  const p = { id:uid(), name,
-    building: document.getElementById("pform-building").value.trim(),
-    floor:    document.getElementById("pform-floor").value.trim(), image };
   const cid = S.currentClientId;
   if (!S.plans[cid]) S.plans[cid]=[];
-  S.plans[cid].push(p); persist(["plans"]); toast("Plan ajouté ✓");
+  const building = document.getElementById("pform-building").value.trim();
+  const floor    = document.getElementById("pform-floor").value.trim();
+  if (id) {
+    const existing = S.plans[cid].find(x => x.id===id);
+    if (existing) {
+      const renamed = existing.name !== name;
+      existing.name = name; existing.building = building; existing.floor = floor; existing.image = image;
+      if (renamed) propagatePlanName(id, name);
+    }
+    persist(["plans","constats","inspections","activeInsp"]); toast("Plan mis à jour ✓");
+  } else {
+    const p = { id:uid(), name, building, floor, image };
+    S.plans[cid].push(p); persist(["plans"]); toast("Plan ajouté ✓");
+  }
+  if (S.fromInsp) { S.fromInsp=false; nav("p-insp-active"); } else { openClientDetail(cid); }
+}
+function deletePlan() {
+  const id = document.getElementById("pform-id").value;
+  const cid = S.currentClientId;
+  const plan = (S.plans[cid]||[]).find(x => x.id===id);
+  if (!plan) return;
+  const nConstats = S.constats.filter(c=>c.planId===id).length
+    + S.inspections.reduce((a,i)=>a+(i.constats||[]).filter(c=>c.planId===id).length,0);
+  let msg = `Supprimer le plan « ${plan.name} » ?`;
+  if (nConstats) msg += `\n\n⚠️ ${nConstats} constat(s) y font référence et resteront dans les inspections, mais sans plan associé.`;
+  if (!confirm(msg)) return;
+  S.plans[cid] = (S.plans[cid]||[]).filter(x => x.id!==id);
+  if (S.selPlanId===id) S.selPlanId = null;
+  persist(["plans"]); toast("Plan supprimé ✓");
   if (S.fromInsp) { S.fromInsp=false; nav("p-insp-active"); } else { openClientDetail(cid); }
 }
 
@@ -927,11 +985,23 @@ function updateConstatCount() {
 function renderPlanTabs() {
   const plans = S.plans[S.activeInsp.clientId]||[];
   document.getElementById("ia-plans").innerHTML =
-    plans.map(p => `<button type="button" class="plan-tab ${S.selPlanId===p.id?"sel":""}" onclick="selectPlan('${p.id}')">${esc(p.name)}</button>`).join("") +
+    plans.map(p => `<span class="plan-tab ${S.selPlanId===p.id?"sel":""}" style="display:inline-flex;align-items:center;padding:0 2px 0 10px;gap:1px">
+        <button type="button" onclick="selectPlan('${p.id}')" style="background:none;border:none;color:inherit;font:inherit;padding:4px 2px;cursor:pointer">${esc(p.name)}</button>
+        <button type="button" onclick="event.stopPropagation();editPlanFromInsp('${p.id}')" aria-label="Modifier ce plan" style="background:none;border:none;color:inherit;font-size:10px;opacity:.75;padding:4px 6px;cursor:pointer">✏️</button>
+      </span>`).join("") +
     `<button type="button" class="plan-tab" onclick="openPlanFromInsp()">+ plan</button>`;
 }
 function openPlanFromInsp() {
   S.currentClientId=S.activeInsp.clientId; S.fromInsp=true; openPlanForm();
+  document.getElementById("plan-back-btn").onclick = () => { S.fromInsp=false; nav("p-insp-active"); };
+}
+// Permet de corriger le nom d'un plan directement depuis les onglets de
+// l'inspection en cours (sans repasser par la fiche client) — pratique sur le terrain.
+function editPlanFromInsp(planId) {
+  const plan = (S.plans[S.activeInsp.clientId]||[]).find(p => p.id===planId);
+  if (!plan) return;
+  S.currentClientId = S.activeInsp.clientId; S.fromInsp = true;
+  openPlanForm(plan);
   document.getElementById("plan-back-btn").onclick = () => { S.fromInsp=false; nav("p-insp-active"); };
 }
 function selectPlan(planId) {
@@ -955,6 +1025,45 @@ function applyMapTransform() {
   });
 }
 
+// Dimensionne #map-wrap pour que le plan ENTIER (quel que soit son orientation :
+// large ou tout en longueur) tienne toujours dans l'espace visible à l'écran,
+// comme un "contain" — l'utilisateur peut ensuite zoomer pour les détails.
+// Sans ça, un plan très haut (pris en longueur) débordait très largement sous
+// l'écran et les contrôles de zoom / la moitié du plan devenaient inatteignables.
+function fitPlanToContainer() {
+  const img  = document.getElementById("map-img");
+  const wrap = document.getElementById("map-wrap");
+  const area = document.getElementById("ia-map-area");
+  if (!img || !wrap || !area || !img.naturalWidth || !img.naturalHeight) return;
+  const nW = img.naturalWidth, nH = img.naturalHeight;
+  const cw = area.clientWidth || window.innerWidth;
+  // La hauteur disponible ne peut PAS être lue sur area.clientHeight : cette zone
+  // n'a pas de hauteur propre (la page utilise min-height, pas height), donc sa
+  // taille dépend de celle du plan affiché — ce qui créerait un calcul circulaire
+  // pour un plan très haut. On la déduit plutôt de la fenêtre moins les éléments
+  // fixes (en-tête, légende, barre du bas), qui eux ne dépendent jamais du plan.
+  const header = document.querySelector("#p-insp-active .insp-header");
+  const botBar = document.querySelector("#p-insp-active .bot-bar");
+  const legend = document.getElementById("plan-legend");
+  const headerH = header ? header.offsetHeight : 0;
+  const botBarH = botBar ? botBar.offsetHeight : 0;
+  const legendH = (legend && legend.style.display !== "none") ? legend.offsetHeight : 0;
+  const ch = Math.max(window.innerHeight - headerH - botBarH - legendH, 200);
+  const scale = Math.min(cw / nW, ch / nH);
+  wrap.style.width  = Math.round(nW * scale) + "px";
+  wrap.style.height = Math.round(nH * scale) + "px";
+}
+let _planResizeTimer = null;
+window.addEventListener("resize", () => {
+  const wrap = document.getElementById("map-wrap");
+  if (!wrap || wrap.style.display === "none") return;
+  clearTimeout(_planResizeTimer);
+  _planResizeTimer = setTimeout(() => {
+    fitPlanToContainer();
+    clampPan(); applyMapTransform();
+  }, 150);
+});
+
 function showPlan(plan) {
   document.getElementById("ia-no-plan").style.display="none";
   const wrap = document.getElementById("map-wrap");
@@ -969,6 +1078,9 @@ function showPlan(plan) {
   fresh.style.transformOrigin = "0 0";
   fresh.style.transition = "none";
   fresh.style.touchAction = "none"; // on gère nous-mêmes les gestes
+  const onFit = () => { fitPlanToContainer(); applyMapTransform(); };
+  if (fresh.complete && fresh.naturalWidth) onFit();
+  fresh.addEventListener("load", onFit);
   applyMapTransform();
 
   // --- Gestion des gestes tactiles ---
@@ -1436,6 +1548,54 @@ async function capturePlanSnapshot(plan, x, y, type) {
   return canvas.toDataURL("image/jpeg", 0.9);
 }
 
+// Génère une photo d'ensemble du plan avec TOUS les constats positionnés dessus
+// (utilisée en tête de chaque série de constats d'un même plan dans le rapport PDF).
+async function capturePlanOverview(planImage, group) {
+  const img = new Image();
+  img.src = planImage;
+  try {
+    await img.decode();
+  } catch (e) {
+    await new Promise((resolve) => {
+      if (img.complete && img.naturalWidth) return resolve();
+      img.onload = resolve;
+      img.onerror = resolve;
+    });
+  }
+  const nW = img.naturalWidth, nH = img.naturalHeight;
+  if (!nW || !nH) return null;
+
+  const MAX = 1400;
+  const scale = nW > MAX ? MAX / nW : 1;
+  const OUT_W = Math.round(nW * scale), OUT_H = Math.round(nH * scale);
+  const canvas = document.createElement("canvas");
+  canvas.width = OUT_W; canvas.height = OUT_H;
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(img, 0, 0, OUT_W, OUT_H);
+
+  const r = Math.max(13, Math.min(30, OUT_W * 0.02));
+  (group||[]).forEach(c => {
+    if (c.x == null || c.y == null) return;
+    const t = TYPES[c.type] || { c: "#e8291c" };
+    const mx = Math.max(r, Math.min((c.x / 100) * OUT_W, OUT_W - r));
+    const my = Math.max(r, Math.min((c.y / 100) * OUT_H, OUT_H - r));
+    // Halo
+    ctx.beginPath(); ctx.arc(mx, my, r * 1.4, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(255,255,255,0.45)"; ctx.fill();
+    // Disque
+    ctx.beginPath(); ctx.arc(mx, my, r, 0, Math.PI * 2);
+    ctx.fillStyle = t.c || "#666"; ctx.fill();
+    ctx.strokeStyle = "#fff"; ctx.lineWidth = Math.max(2, r * 0.22); ctx.stroke();
+    // Numéro
+    ctx.fillStyle = "#fff";
+    ctx.font = `bold ${Math.round(r * 1.05)}px Arial`;
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText(String(c.num != null ? c.num : ""), mx, my + 1);
+  });
+
+  return canvas.toDataURL("image/jpeg", 0.92);
+}
+
 // Renumérote les constats de l'inspection courante : 1, 2, 3 ... sans trou.
 // Respecte l'ordre des numéros existants (num), les constats sans num vont à la fin.
 function renumberConstats() {
@@ -1528,13 +1688,35 @@ function finishInspection() {
 /* ============================================================
    RAPPORT PDF
    ============================================================ */
-function generateReport(insp, constats, conclusion) {
+async function generateReport(insp, constats, conclusion) {
   const C      = Array.isArray(constats)?constats:[];
   const byType = C.reduce((a,c)=>{a[c.type]=(a[c.type]||0)+1;return a;},{});
   const RED="e8291c", NAVY="1a2535";
   const pCol   = ["#dc2626","#ea580c","#ca8a04","#16a34a"];
   const pDot   = ["🔴","🟠","🟡","🟢"];
-  const N      = 2+C.length+(C.length>0?1:0)+1;
+
+  // Regroupement des constats par plan (dans l'ordre de leur numéro),
+  // afin d'afficher une vue d'ensemble avant chaque série de constats d'un même plan.
+  const sortedC = [...C].sort((a,b)=>((a.num!=null?a.num:1e9)-(b.num!=null?b.num:1e9)));
+  const groupOrder = [];
+  const groupsMap = {};
+  sortedC.forEach(c => {
+    const key = c.planId || ("__zone__" + (c.planName || ""));
+    if (!groupsMap[key]) { groupsMap[key] = { planId:c.planId, planName:c.planName||"Zone non définie", items:[] }; groupOrder.push(key); }
+    groupsMap[key].items.push(c);
+  });
+  const clientPlans = S.plans[insp.clientId] || [];
+  const overviewImages = {};
+  await Promise.all(groupOrder.map(async key => {
+    const g = groupsMap[key];
+    const planObj = g.planId ? clientPlans.find(p => p.id === g.planId) : null;
+    if (!planObj || !planObj.image) return;
+    try { overviewImages[key] = await capturePlanOverview(planObj.image, g.items); }
+    catch (e) { overviewImages[key] = null; }
+  }));
+  const overviewCount = groupOrder.filter(k => overviewImages[k]).length;
+
+  const N      = 2+overviewCount+C.length+(C.length>0?1:0)+1;
   let sn = 1;
 
   const foot = info => `
@@ -1612,20 +1794,21 @@ function generateReport(insp, constats, conclusion) {
     ${foot(esc(insp.clientName)+" — Synthèse")}
   </div>`;
 
-  const sCArr = [...C].sort((a,b)=>((a.num!=null?a.num:1e9)-(b.num!=null?b.num:1e9))).map((c,idx)=>{
+  // fit = "contain" pour la localisation (plan entier visible, jamais rogné)
+  //       "cover"   pour les photos (remplissage esthétique)
+  const ph=(img,lbl,fit="cover")=>img
+    ?`<div style="flex:1;position:relative;overflow:hidden;background:#1a2535">
+        <img src="${img}" alt="${lbl}" style="width:100%;height:100%;object-fit:${fit};display:block">
+        <div style="position:absolute;bottom:0;left:0;right:0;padding:5px 8px;background:linear-gradient(transparent,rgba(0,0,0,0.65))">
+          <span style="font-size:8pt;color:#fff;font-weight:600;font-family:Arial">${lbl}</span>
+        </div>
+      </div>`
+    :`<div style="flex:1;background:#dde1e7;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#aaa;gap:4px">
+        <span style="font-size:18pt">—</span><span style="font-size:7.5pt;font-family:Arial">${lbl}</span>
+      </div>`;
+
+  function buildConstatPage(c, idx) {
     const t=TYPES[c.type]||{e:"?",c:"#666"}; const pr=PRIOS[c.priority]||PRIOS[0];
-    // fit = "contain" pour la localisation (plan entier visible, jamais rogné)
-    //       "cover"   pour les photos (remplissage esthétique)
-    const ph=(img,lbl,fit="cover")=>img
-      ?`<div style="flex:1;position:relative;overflow:hidden;background:#1a2535">
-          <img src="${img}" alt="${lbl}" style="width:100%;height:100%;object-fit:${fit};display:block">
-          <div style="position:absolute;bottom:0;left:0;right:0;padding:5px 8px;background:linear-gradient(transparent,rgba(0,0,0,0.65))">
-            <span style="font-size:8pt;color:#fff;font-weight:600;font-family:Arial">${lbl}</span>
-          </div>
-        </div>`
-      :`<div style="flex:1;background:#dde1e7;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#aaa;gap:4px">
-          <span style="font-size:18pt">—</span><span style="font-size:7.5pt;font-family:Arial">${lbl}</span>
-        </div>`;
     return `
     <div style="width:297mm;height:210mm;display:flex;flex-direction:column;page-break-after:always;overflow:hidden;background:#fff;font-family:Arial,sans-serif">
       <div style="background:#${NAVY};padding:3.5mm 10mm;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
@@ -1658,8 +1841,33 @@ function generateReport(insp, constats, conclusion) {
         </div>
       </div>
       ${foot(esc(insp.clientName)+" · "+esc(c.planName||""))}
-    </div>`;});
-  const sC = sCArr.join("");
+    </div>`;
+  }
+
+  function buildOverviewPage(planName, items, img) {
+    return `
+    <div style="width:297mm;height:210mm;display:flex;flex-direction:column;page-break-after:always;overflow:hidden;background:#fff;font-family:Arial,sans-serif">
+      <div style="background:#${NAVY};padding:5mm 10mm;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
+        <span style="font-size:14pt;font-weight:700;color:#fff">📍 ${esc(planName)} — Vue d'ensemble</span>
+        <span style="font-size:9pt;color:rgba(255,255,255,0.6)">${items.length} constat${items.length>1?"s":""}</span>
+      </div>
+      <div style="flex:1;display:flex;align-items:center;justify-content:center;background:#eef0f3;padding:8mm;overflow:hidden">
+        <img src="${img}" alt="Vue d'ensemble" style="max-width:100%;max-height:100%;object-fit:contain;border-radius:4px;box-shadow:0 1px 8px rgba(0,0,0,.18)">
+      </div>
+      ${foot(esc(insp.clientName)+" · "+esc(planName)+" — Vue d'ensemble")}
+    </div>`;
+  }
+
+  // Assemble, pour chaque plan, sa page de vue d'ensemble (si disponible)
+  // suivie de ses pages de constats détaillées.
+  let globalIdx = 0;
+  const middlePages = [];
+  groupOrder.forEach(key => {
+    const g = groupsMap[key];
+    const ovImg = overviewImages[key];
+    if (ovImg) middlePages.push(buildOverviewPage(g.planName, g.items, ovImg));
+    g.items.forEach(c => { middlePages.push(buildConstatPage(c, globalIdx)); globalIdx++; });
+  });
 
   const sConcl = C.length>0?`
   <div style="width:297mm;min-height:210mm;background:#fff;font-family:Arial,sans-serif;break-before:page">
@@ -1712,10 +1920,10 @@ function generateReport(insp, constats, conclusion) {
   const safeName = (insp.clientName || "rapport").replace(/[^a-zA-Z0-9]/g, "_");
   const fileBase = `Rapport_${safeName}_${fmt(insp.date).replace(/\//g,"-")}`;
 
-  const pagesFixed = [s1, s2, ...sCArr, sBck].filter(Boolean)
-    .map(p => `<div class="rep-page">${p}</div>`).join("");
-  const pagesHtml = pagesFixed.replace(`<div class="rep-page">${sBck}</div>`,
-    (sConcl ? `<div class="rep-free">${sConcl}</div>` : "") + `<div class="rep-page">${sBck}</div>`);
+  const wrapPage = p => `<div class="rep-page">${p}</div>`;
+  const pagesHtml = [s1, s2, ...middlePages].filter(Boolean).map(wrapPage).join("")
+    + (sConcl ? `<div class="rep-free">${sConcl}</div>` : "")
+    + wrapPage(sBck);
 
   const html = `<!DOCTYPE html><html lang="fr"><head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${fileBase}</title>
